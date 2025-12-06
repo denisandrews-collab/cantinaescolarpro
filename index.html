@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CantinaEscolar Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: '#f0fdf4',
+                100: '#dcfce7',
+                500: '#22c55e',
+                600: '#16a34a',
+                700: '#15803d',
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      @media print {
+        /* Esconde o corpo principal da aplicação para não gastar tinta com menus/fundos */
+        body > * {
+          display: none !important;
+        }
+
+        /* Regra específica para trazer o conteúdo imprimível de volta */
+        body > .printable, 
+        .printable, 
+        .printable * {
+          display: block !important;
+          visibility: visible !important;
+        }
+
+        /* Posicionamento absoluto para garantir que saia no topo da folha */
+        .printable {
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          background: white !important;
+          color: black !important;
+          z-index: 9999 !important;
+          box-shadow: none !important;
+          border: none !important;
+        }
+
+        /* Classes utilitárias para esconder elementos específicos na impressão (como botões) */
+        .no-print, .print\:hidden {
+          display: none !important;
+        }
+
+        /* Ajustes de flexbox para impressão */
+        .print\:block {
+          display: block !important;
+        }
+        
+        .print\:flex {
+          display: flex !important;
+        }
+
+        /* Quebra de página */
+        .page-break {
+          page-break-before: always !important;
+          break-before: page !important;
+          display: block !important;
+          height: 1px;
+          border-top: 1px dashed #000;
+          margin: 20px 0;
+          position: relative;
+        }
+
+        /* Reset de margens da página */
+        @page {
+          margin: 0.5cm;
+          size: auto;
+        }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0"
+  }
+}
+</script>
+</head>
+  <body class="bg-gray-50 text-gray-900 font-sans antialiased">
+    <div id="root"></div>
+  </body>
+</html>
