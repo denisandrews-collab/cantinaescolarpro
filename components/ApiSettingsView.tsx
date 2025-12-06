@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Product, Student, ProductCategory } from '../types';
 
@@ -91,7 +92,7 @@ export const ApiSettingsView: React.FC<ApiSettingsViewProps> = ({ onSyncProducts
                     <input 
                         type="url" 
                         placeholder="https://api.escola.com/v1/produtos"
-                        className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="w-full border rounded-lg p-2 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 outline-none"
                         value={productsUrl}
                         onChange={(e) => setProductsUrl(e.target.value)}
                     />
@@ -132,7 +133,7 @@ export const ApiSettingsView: React.FC<ApiSettingsViewProps> = ({ onSyncProducts
                     <input 
                         type="url" 
                         placeholder="https://api.escola.com/v1/alunos"
-                        className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-green-500 outline-none"
+                        className="w-full border rounded-lg p-2 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 outline-none"
                         value={studentsUrl}
                         onChange={(e) => setStudentsUrl(e.target.value)}
                     />

@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import { Product, ProductCategory } from '../types';
 import { CategoryIcons } from '../constants';
 
@@ -9,14 +10,18 @@ interface ProductsViewProps {
   onUpdateProduct: (product: Product) => void;
   onDeleteProduct: (id: string) => void;
   onImportProducts: (products: Product[]) => void;
+  onToggleFavorite?: (productId: string) => void;
 }
 
 export const ProductsView: React.FC<ProductsViewProps> = ({ 
-  products, onAddProduct, onUpdateProduct, onDeleteProduct, onImportProducts 
+  products, onAddProduct, onUpdateProduct, onDeleteProduct, onImportProducts, onToggleFavorite 
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
+  // Sort State
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Product; direction: 'asc' | 'desc' } | null>(null);
+
   // Form State
   const [formData, setFormData] = useState({ 
     name: '', 
@@ -24,7 +29,9 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
     price: '0', 
     costPrice: '0',
     stock: '0',
-    category: ProductCategory.SNACK 
+    category: ProductCategory.SNACK,
+    image: '',
+    isActive: true
   });
 
   // Modal Handlers
@@ -37,7 +44,9 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
         price: product.price.toString(),
         costPrice: (product.costPrice || 0).toString(),
         stock: (product.stock || 0).toString(),
-        category: product.category 
+        category: product.category,
+        image: product.image || '',
+        isActive: product.isActive ?? true
       });
     } else {
       setEditingProduct(null);
@@ -47,7 +56,9 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
         price: '0',
         costPrice: '0',
         stock: '0',
-        category: ProductCategory.SNACK 
+        category: ProductCategory.SNACK,
+        image: '',
+        isActive: true
       });
     }
     setIsModalOpen(true);
@@ -61,7 +72,9 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
       price: parseFloat(formData.price),
       costPrice: parseFloat(formData.costPrice),
       stock: parseInt(formData.stock),
-      category: formData.category
+      category: formData.category,
+      image: formData.image,
+      isActive: formData.isActive
     };
 
     if (editingProduct) {
@@ -72,10 +85,47 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
     setIsModalOpen(false);
   };
 
+  const toggleProductStatus = (e: React.MouseEvent, product: Product) => {
+      e.stopPropagation(); // Stop propagation to prevent opening edit modal
+      onUpdateProduct({ ...product, isActive: !product.isActive });
+  };
+
+  const handleSort = (key: keyof Product) => {
+      let direction: 'asc' | 'desc' = 'asc';
+      if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+          direction = 'desc';
+      }
+      setSortConfig({ key, direction });
+  };
+
+  const sortedProducts = useMemo(() => {
+      let sortableItems = [...products];
+      if (sortConfig !== null) {
+          sortableItems.sort((a, b) => {
+              const aValue = a[sortConfig.key];
+              const bValue = b[sortConfig.key];
+
+              // Handle undefined values
+              if (aValue === undefined && bValue === undefined) return 0;
+              if (aValue === undefined) return 1;
+              if (bValue === undefined) return -1;
+
+              if (aValue < bValue) {
+                  return sortConfig.direction === 'asc' ? -1 : 1;
+              }
+              if (aValue > bValue) {
+                  return sortConfig.direction === 'asc' ? 1 : -1;
+              }
+              return 0;
+          });
+      }
+      return sortableItems;
+  }, [products, sortConfig]);
+
   // Import/Export Logic
   const handleExportCSV = () => {
-    const headers = "ID,Código,Nome,Preço Venda,Preço Custo,Estoque,Categoria\n";
-    const rows = products.map(p => `${p.id},"${p.code || ''}","${p.name}",${p.price},${p.costPrice || 0},${p.stock || 0},"${p.category}"`).join("\n");
+    const headers = "ID,Código,Nome,Preço Venda,Preço Custo,Estoque,Categoria,Imagem,Ativo\n";
+    const rows = products.map(p => `${p.id},"${p.code || ''}","${p.name}",${p.price},${p.costPrice || 0},${p.stock || 0},"${p.category}","${p.image || ''}",${p.isActive ? 'SIM' : 'NÃO'}`).join("\n");
     const csvContent = "data:text/csv;charset=utf-8," + encodeURI(headers + rows);
     const link = document.createElement("a");
     link.setAttribute("href", csvContent);
@@ -103,7 +153,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
         if (!line) continue;
         
         const parts = line.split(','); 
-        // Expecting: ID,Code,Name,Price,Cost,Stock,Category
+        // Expecting: ID,Code,Name,Price,Cost,Stock,Category,Image...
         if (parts.length >= 4) { // Basic validation
            const price = parseFloat(parts[3]);
            const category = Object.values(ProductCategory).includes(parts[6] as any) 
@@ -117,7 +167,9 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
              price: isNaN(price) ? 0 : price,
              costPrice: parseFloat(parts[4]) || 0,
              stock: parseInt(parts[5]) || 0,
-             category
+             category,
+             image: parts[7] ? parts[7].replace(/"/g, '') : '',
+             isActive: true,
            });
         }
       }
@@ -129,6 +181,24 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
     };
     reader.readAsText(file);
   };
+
+  const getSortIcon = (key: keyof Product) => {
+      if (sortConfig?.key === key) {
+          return sortConfig.direction === 'asc' ? '↑' : '↓';
+      }
+      return '';
+  };
+
+  const HeaderCell = ({ field, label, align = 'left' }: { field: keyof Product, label: string, align?: string }) => (
+      <th 
+        className={`p-4 cursor-pointer hover:bg-gray-200 select-none text-${align}`}
+        onClick={() => handleSort(field)}
+      >
+          <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start'}`}>
+            {label} <span className="text-gray-500 font-mono">{getSortIcon(field)}</span>
+          </div>
+      </th>
+  );
 
   return (
     <div className="p-6 h-full flex flex-col bg-gray-50 overflow-hidden">
@@ -156,25 +226,49 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
 
       <div className="flex-1 overflow-auto bg-white rounded-xl shadow-sm border border-gray-200">
         <table className="w-full text-left">
-          <thead className="bg-gray-100 text-gray-600 uppercase text-xs sticky top-0">
+          <thead className="bg-gray-100 text-gray-600 uppercase text-xs sticky top-0 z-10">
             <tr>
-              <th className="p-4">Cód.</th>
-              <th className="p-4">Ícone</th>
-              <th className="p-4">Produto</th>
-              <th className="p-4">Categoria</th>
-              <th className="p-4 text-center">Estoque</th>
-              <th className="p-4 text-right">Custo (R$)</th>
-              <th className="p-4 text-right">Venda (R$)</th>
+              <th className="p-4 w-12 text-center">Fav</th>
+              <th className="p-4 w-16 text-center">Ativo</th>
+              <HeaderCell field="code" label="Cód." />
+              <th className="p-4">Ícone/Img</th>
+              <HeaderCell field="name" label="Produto" />
+              <HeaderCell field="category" label="Categoria" />
+              <HeaderCell field="stock" label="Estoque" align="center" />
+              <HeaderCell field="costPrice" label="Custo (R$)" align="right" />
+              <HeaderCell field="price" label="Venda (R$)" align="right" />
               <th className="p-4 text-center">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {products.map(product => (
-              <tr key={product.id} className="hover:bg-gray-50">
+            {sortedProducts.map(product => (
+              <tr 
+                key={product.id} 
+                className={`hover:bg-gray-50 cursor-pointer ${!product.isActive ? 'bg-gray-50 opacity-60' : ''}`}
+                onDoubleClick={() => handleOpenModal(product)}
+              >
+                <td className="p-4 text-center" onClick={(e) => { e.stopPropagation(); onToggleFavorite && onToggleFavorite(product.id); }}>
+                    <button className="text-xl transition-transform hover:scale-125 focus:outline-none">
+                        {product.isFavorite ? <span className="text-yellow-400">★</span> : <span className="text-gray-200">★</span>}
+                    </button>
+                </td>
+                <td className="p-4 text-center" onClick={(e) => toggleProductStatus(e, product)}>
+                    <button className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${product.isActive ? 'bg-green-100 text-green-600 hover:bg-green-200' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}>
+                        {product.isActive ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12h10"/><path d="M9 4v16"/><path d="M3 7.7 5.3 10"/><path d="M3 16.3 5.3 14"/><path d="M16 12h6"/><path d="M19 16.3 21.3 14"/><path d="M19 7.7 21.3 10"/></svg>
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" x2="19.07" y1="4.93" y2="19.07"/></svg>
+                        )}
+                    </button>
+                </td>
                 <td className="p-4 text-gray-500 font-mono text-xs">{product.code || '-'}</td>
                 <td className="p-4 text-gray-400">
-                  <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
-                    {CategoryIcons[product.category]}
+                  <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
+                    {product.image ? (
+                        <img src={product.image} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                        CategoryIcons[product.category]
+                    )}
                   </div>
                 </td>
                 <td className="p-4 font-medium">{product.name}</td>
@@ -195,10 +289,10 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                   {product.price.toFixed(2)}
                 </td>
                 <td className="p-4 flex justify-center gap-2">
-                  <button onClick={() => handleOpenModal(product)} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
+                  <button onClick={(e) => { e.stopPropagation(); handleOpenModal(product); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
                   </button>
-                  <button onClick={() => onDeleteProduct(product.id)} className="p-2 text-red-600 hover:bg-red-50 rounded">
+                  <button onClick={(e) => { e.stopPropagation(); onDeleteProduct(product.id); }} className="p-2 text-red-600 hover:bg-red-50 rounded">
                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
                   </button>
                 </td>
@@ -218,7 +312,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                     <label className="block text-sm font-medium text-gray-700 mb-1">Cód.</label>
                     <input 
                         type="text" 
-                        className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-brand-500 outline-none"
+                        className="w-full border rounded-lg p-2 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-brand-500 outline-none"
                         value={formData.code}
                         onChange={e => setFormData({...formData, code: e.target.value})}
                     />
@@ -228,7 +322,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                     <input 
                     type="text" 
                     required
-                    className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-brand-500 outline-none"
+                    className="w-full border rounded-lg p-2 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-brand-500 outline-none"
                     value={formData.name}
                     onChange={e => setFormData({...formData, name: e.target.value})}
                     />
@@ -241,7 +335,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                   <input 
                     type="number" 
                     step="0.01"
-                    className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-brand-500 outline-none"
+                    className="w-full border rounded-lg p-2 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-brand-500 outline-none"
                     value={formData.costPrice}
                     onChange={e => setFormData({...formData, costPrice: e.target.value})}
                   />
@@ -252,7 +346,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                     type="number" 
                     step="0.01"
                     required
-                    className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-brand-500 outline-none"
+                    className="w-full border rounded-lg p-2 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-brand-500 outline-none"
                     value={formData.price}
                     onChange={e => setFormData({...formData, price: e.target.value})}
                   />
@@ -261,24 +355,51 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                   <label className="block text-sm font-medium text-gray-700 mb-1">Estoque</label>
                   <input 
                     type="number" 
-                    className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-brand-500 outline-none"
+                    className="w-full border rounded-lg p-2 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-brand-500 outline-none"
                     value={formData.stock}
                     onChange={e => setFormData({...formData, stock: e.target.value})}
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                <select 
-                className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-brand-500 outline-none"
-                value={formData.category}
-                onChange={e => setFormData({...formData, category: e.target.value as ProductCategory})}
-                >
-                {Object.values(ProductCategory).map(c => (
-                    <option key={c} value={c}>{c}</option>
-                ))}
-                </select>
+              <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">URL da Imagem (Opcional)</label>
+                    <input 
+                        type="url" 
+                        placeholder="https://exemplo.com/imagem.jpg"
+                        className="w-full border rounded-lg p-2 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-brand-500 outline-none"
+                        value={formData.image}
+                        onChange={e => setFormData({...formData, image: e.target.value})}
+                    />
+                    <p className="text-[10px] text-gray-500 mt-1">Cole o link de uma imagem da internet para exibir no PDV.</p>
+                  </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                    <select 
+                        className="w-full border rounded-lg p-2 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-brand-500 outline-none"
+                        value={formData.category}
+                        onChange={e => setFormData({...formData, category: e.target.value as ProductCategory})}
+                    >
+                        {Object.values(ProductCategory).map(c => (
+                            <option key={c} value={c}>{c}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="flex items-end">
+                    <label className="flex items-center gap-2 p-3 border border-gray-700 bg-gray-800 rounded-lg cursor-pointer w-full text-white">
+                        <input 
+                            type="checkbox"
+                            checked={formData.isActive}
+                            onChange={e => setFormData({...formData, isActive: e.target.checked})}
+                            className="w-5 h-5 text-brand-600 rounded focus:ring-brand-500"
+                        />
+                        <span className="font-bold text-sm">Produto Ativo</span>
+                    </label>
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 mt-6">

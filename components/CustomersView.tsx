@@ -58,7 +58,8 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
       guardianName: '',
       guardianEmail: '',
       guardianPhone: '',
-      notes: ''
+      notes: '',
+      isActive: true
   });
 
   // Handle external trigger for new student
@@ -117,16 +118,22 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
           guardianName: student.guardianName || '',
           guardianEmail: student.guardianEmail || '',
           guardianPhone: student.guardianPhone || '',
-          notes: student.notes || ''
+          notes: student.notes || '',
+          isActive: student.isActive ?? true
       });
     } else {
       setEditingStudent(null);
       setFormData({ 
           name: '', code: '', grade: '', isStaff: false, balance: '0',
-          guardianName: '', guardianEmail: '', guardianPhone: '', notes: ''
+          guardianName: '', guardianEmail: '', guardianPhone: '', notes: '', isActive: true
       });
     }
     setIsModalOpen(true);
+  };
+
+  const toggleStudentStatus = (e: React.MouseEvent, student: Student) => {
+      e.stopPropagation();
+      onUpdateStudent({ ...student, isActive: !student.isActive });
   };
 
   const generatePassword = () => {
@@ -157,7 +164,8 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
         guardianName: formData.guardianName,
         guardianEmail: formData.guardianEmail,
         guardianPhone: formData.guardianPhone,
-        notes: formData.notes
+        notes: formData.notes,
+        isActive: formData.isActive
     };
 
     if (editingStudent) {
@@ -273,8 +281,8 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
 
   // Import/Export Logic
   const handleExportCSV = () => {
-    const headers = "ID,Código,Nome,Turma,Responsável,Email Resp,Telefone Resp,Saldo\n";
-    const rows = students.map(s => `${s.id},"${s.code || ''}","${s.name}","${s.grade}","${s.guardianName || ''}","${s.guardianEmail || ''}","${s.guardianPhone || ''}",${s.balance}`).join("\n");
+    const headers = "ID,Código,Nome,Turma,Responsável,Email Resp,Telefone Resp,Saldo,Ativo\n";
+    const rows = students.map(s => `${s.id},"${s.code || ''}","${s.name}","${s.grade}","${s.guardianName || ''}","${s.guardianEmail || ''}","${s.guardianPhone || ''}",${s.balance},${s.isActive ? 'SIM' : 'NÃO'}`).join("\n");
     const csvContent = "data:text/csv;charset=utf-8," + encodeURI(headers + rows);
     const link = document.createElement("a");
     link.setAttribute("href", csvContent);
@@ -318,7 +326,8 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
              points: 0,
              history: [],
              guardianPassword: generatePassword(), // Generate password for imported students
-             isStaff: false // Default to student
+             isStaff: false, // Default to student
+             isActive: true
            });
         }
       }
@@ -367,7 +376,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                 <input 
                     type="text" 
                     placeholder="Buscar cliente..." 
-                    className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"
+                    className="w-full pl-9 pr-4 py-2 border border-gray-700 bg-gray-800 text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -404,6 +413,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                     onChange={toggleSelectAll}
                   />
               </th>
+              <th className="p-4 w-16 text-center">Ativo</th>
               <th className="p-4">Cód.</th>
               <th className="p-4">Nome</th>
               <th className="p-4">Responsável</th>
@@ -416,15 +426,16 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
           <tbody className="divide-y divide-gray-100">
             {filteredStudents.length === 0 ? (
                 <tr>
-                    <td colSpan={8} className="p-8 text-center text-gray-400">Nenhum cliente encontrado.</td>
+                    <td colSpan={9} className="p-8 text-center text-gray-400">Nenhum cliente encontrado.</td>
                 </tr>
             ) : (
                 filteredStudents.map(student => {
                     const isSelected = selectedIds.has(student.id);
+                    const isActive = student.isActive !== false;
                     return (
                         <React.Fragment key={student.id}>
                             <tr 
-                                className={`hover:bg-gray-50 cursor-pointer select-none transition-colors ${isSelected ? 'bg-blue-50' : ''}`}
+                                className={`hover:bg-gray-50 cursor-pointer select-none transition-colors ${isSelected ? 'bg-blue-50' : ''} ${!isActive ? 'opacity-50' : ''}`}
                                 onDoubleClick={() => toggleHistory(student.id)}
                                 onClick={() => toggleSelection(student.id)}
                             >
@@ -435,6 +446,15 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                                         checked={isSelected}
                                         onChange={() => toggleSelection(student.id)}
                                     />
+                                </td>
+                                <td className="p-4 text-center" onClick={(e) => toggleStudentStatus(e, student)}>
+                                    <button className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isActive ? 'bg-green-100 text-green-600 hover:bg-green-200' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}>
+                                        {isActive ? (
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12h10"/><path d="M9 4v16"/><path d="M3 7.7 5.3 10"/><path d="M3 16.3 5.3 14"/><path d="M16 12h6"/><path d="M19 16.3 21.3 14"/><path d="M19 7.7 21.3 10"/></svg>
+                                        ) : (
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" x2="19.07" y1="4.93" y2="19.07"/></svg>
+                                        )}
+                                    </button>
                                 </td>
                                 <td className="p-4 text-gray-500 font-mono text-sm">{student.code || '-'}</td>
                                 <td className="p-4 font-medium">
@@ -498,7 +518,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                             {/* EXPANDED HISTORY ROW */}
                             {expandedStudentId === student.id && (
                                 <tr className="bg-gray-50 shadow-inner">
-                                    <td colSpan={8} className="p-4">
+                                    <td colSpan={9} className="p-4">
                                         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                                             <h4 className="px-4 py-2 bg-gray-100 text-xs font-bold text-gray-500 uppercase border-b border-gray-200">
                                                 Histórico Financeiro - {student.name}
@@ -644,7 +664,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                         <input 
                         type="text" 
                         required
-                        className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-brand-500 outline-none"
+                        className="w-full border rounded-lg p-2 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-brand-500 outline-none"
                         value={formData.name}
                         onChange={e => setFormData({...formData, name: e.target.value})}
                         />
@@ -654,7 +674,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                             <label className="block text-sm font-medium text-gray-700 mb-1">Cód. Aluno</label>
                             <input 
                             type="text" 
-                            className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-brand-500 outline-none"
+                            className="w-full border rounded-lg p-2 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-brand-500 outline-none"
                             value={formData.code}
                             onChange={e => setFormData({...formData, code: e.target.value})}
                             />
@@ -665,7 +685,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                                 type="text" 
                                 required
                                 placeholder="Ex: 5º Ano B"
-                                className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-brand-500 outline-none"
+                                className="w-full border rounded-lg p-2 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-brand-500 outline-none"
                                 value={formData.grade}
                                 onChange={e => setFormData({...formData, grade: e.target.value})}
                             />
@@ -676,28 +696,42 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                         <input 
                             type="number" 
                             step="0.01"
-                            className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-brand-500 outline-none"
+                            className="w-full border rounded-lg p-2 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-brand-500 outline-none"
                             value={formData.balance}
                             onChange={e => setFormData({...formData, balance: e.target.value})}
                         />
                     </div>
-                     <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                        <input 
-                            type="checkbox" 
-                            id="isStaff"
-                            className="w-4 h-4 text-brand-600 rounded focus:ring-brand-500"
-                            checked={formData.isStaff}
-                            onChange={e => setFormData({...formData, isStaff: e.target.checked})}
-                        />
-                        <label htmlFor="isStaff" className="text-sm text-gray-700 font-medium select-none cursor-pointer">
-                            Este cliente é funcionário/professor
-                        </label>
+                     <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                            <input 
+                                type="checkbox" 
+                                id="isStaff"
+                                className="w-4 h-4 text-brand-600 rounded focus:ring-brand-500"
+                                checked={formData.isStaff}
+                                onChange={e => setFormData({...formData, isStaff: e.target.checked})}
+                            />
+                            <label htmlFor="isStaff" className="text-sm text-gray-700 font-medium select-none cursor-pointer">
+                                Este cliente é funcionário/professor
+                            </label>
+                        </div>
+                        <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                            <input 
+                                type="checkbox" 
+                                id="isActive"
+                                className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                                checked={formData.isActive}
+                                onChange={e => setFormData({...formData, isActive: e.target.checked})}
+                            />
+                            <label htmlFor="isActive" className="text-sm text-gray-700 font-medium select-none cursor-pointer">
+                                Cadastro Ativo
+                            </label>
+                        </div>
                     </div>
 
                     <div>
                         <label className="block text-sm font-bold text-red-600 mb-1">Observações / Alergias</label>
                         <textarea 
-                            className="w-full border border-red-200 bg-red-50 rounded-lg p-2 focus:ring-2 focus:ring-red-500 outline-none text-sm"
+                            className="w-full border border-red-200 bg-gray-800 text-white placeholder-gray-400 rounded-lg p-2 focus:ring-2 focus:ring-red-500 outline-none text-sm"
                             rows={3}
                             placeholder="Ex: Alergia a amendoim, Intolerância a lactose..."
                             value={formData.notes}
@@ -713,7 +747,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                         <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Responsável</label>
                         <input 
                         type="text" 
-                        className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="w-full border rounded-lg p-2 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 outline-none"
                         placeholder="Nome Pai/Mãe"
                         value={formData.guardianName}
                         onChange={e => setFormData({...formData, guardianName: e.target.value})}
@@ -723,7 +757,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                         <label className="block text-sm font-medium text-gray-700 mb-1">Celular / WhatsApp</label>
                         <input 
                         type="text" 
-                        className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="w-full border rounded-lg p-2 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 outline-none"
                         placeholder="11999999999"
                         value={formData.guardianPhone}
                         onChange={e => setFormData({...formData, guardianPhone: e.target.value})}
@@ -734,7 +768,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                         <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
                         <input 
                         type="email" 
-                        className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="w-full border rounded-lg p-2 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 outline-none"
                         placeholder="email@exemplo.com"
                         value={formData.guardianEmail}
                         onChange={e => setFormData({...formData, guardianEmail: e.target.value})}
@@ -800,7 +834,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                                     disabled={batchPayFullDebt}
                                     value={batchAmount}
                                     onChange={e => setBatchAmount(e.target.value)}
-                                    className="mt-1 w-full border border-gray-300 rounded p-1 text-sm disabled:bg-gray-100"
+                                    className="mt-1 w-full border border-gray-700 bg-gray-800 text-white placeholder-gray-400 rounded p-1 text-sm disabled:bg-gray-100 disabled:text-gray-500"
                                     onClick={e => e.stopPropagation()}
                                 />
                             </div>
@@ -863,7 +897,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                             autoFocus
                             required
                             min="0.01"
-                            className="w-full pl-10 pr-4 py-3 text-xl font-bold text-gray-800 border-2 border-green-500 rounded-lg focus:outline-none focus:ring-4 focus:ring-green-100"
+                            className="w-full pl-10 pr-4 py-3 text-xl font-bold bg-gray-800 border-2 border-green-500 text-white placeholder-gray-400 rounded-lg focus:outline-none focus:ring-4 focus:ring-green-100"
                             placeholder="0,00"
                             value={paymentAmount}
                             onChange={e => setPaymentAmount(e.target.value)}
@@ -913,7 +947,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                                 autoFocus
                                 required
                                 min="0.01"
-                                className="w-full pl-10 pr-4 py-3 text-xl font-bold text-gray-800 border-2 border-orange-500 rounded-lg focus:outline-none focus:ring-4 focus:ring-orange-100"
+                                className="w-full pl-10 pr-4 py-3 text-xl font-bold bg-gray-800 border-2 border-orange-500 text-white placeholder-gray-400 rounded-lg focus:outline-none focus:ring-4 focus:ring-orange-100"
                                 placeholder="0,00"
                                 value={refundAmount}
                                 onChange={e => setRefundAmount(e.target.value)}
@@ -927,7 +961,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                             type="text"
                             required
                             placeholder="Ex: Erro de lançamento, Devolução..."
-                            className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-orange-500 outline-none"
+                            className="w-full border rounded-lg p-2 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-orange-500 outline-none"
                             value={refundReason}
                             onChange={e => setRefundReason(e.target.value)}
                         />

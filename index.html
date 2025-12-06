@@ -24,63 +24,48 @@
     </script>
     <style>
       @media print {
-        /* Esconde o corpo principal da aplicação para não gastar tinta com menus/fundos */
+        @page {
+          size: 80mm auto; 
+          margin: 0;
+        }
+        body {
+          width: 80mm;
+          margin: 0;
+          padding: 0;
+        }
         body > * {
           display: none !important;
         }
-
-        /* Regra específica para trazer o conteúdo imprimível de volta */
-        body > .printable, 
-        .printable, 
-        .printable * {
+        body > .printable, .printable, .printable * {
           display: block !important;
           visibility: visible !important;
         }
-
-        /* Posicionamento absoluto para garantir que saia no topo da folha */
         .printable {
           position: absolute !important;
           left: 0 !important;
           top: 0 !important;
-          width: 100% !important;
+          width: 80mm !important; 
+          max-width: 80mm !important;
           margin: 0 !important;
-          padding: 0 !important;
+          padding: 5px !important;
           background: white !important;
           color: black !important;
           z-index: 9999 !important;
           box-shadow: none !important;
           border: none !important;
+          font-family: monospace; 
         }
-
-        /* Classes utilitárias para esconder elementos específicos na impressão (como botões) */
         .no-print, .print\:hidden {
           display: none !important;
         }
-
-        /* Ajustes de flexbox para impressão */
         .print\:block {
           display: block !important;
         }
-        
-        .print\:flex {
-          display: flex !important;
+        .print\:border-black {
+            border-color: #000 !important;
         }
-
-        /* Quebra de página */
-        .page-break {
-          page-break-before: always !important;
-          break-before: page !important;
-          display: block !important;
-          height: 1px;
-          border-top: 1px dashed #000;
-          margin: 20px 0;
-          position: relative;
-        }
-
-        /* Reset de margens da página */
-        @page {
-          margin: 0.5cm;
-          size: auto;
+        .print\:text-black {
+            color: #000 !important;
         }
       }
     </style>

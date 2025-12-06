@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
-import { Product, Student, Transaction, SystemSettings, StudentHistoryEntry } from './types';
-import { PRODUCTS, STUDENTS } from './constants';
+import { Product, Student, Transaction, SystemSettings, StudentHistoryEntry, SystemUser, Company, AppModule, CashEntry } from './types';
+import { PRODUCTS, STUDENTS, SYSTEM_USERS } from './constants';
 import { PosView } from './components/PosView';
 import { CustomersView } from './components/CustomersView';
 import { ProductsView } from './components/ProductsView';
@@ -12,51 +11,56 @@ import { BillingView } from './components/BillingView';
 import { AccessManagementView } from './components/AccessManagementView';
 import { GuardianPortalView } from './components/GuardianPortalView';
 import { DashboardView } from './components/DashboardView';
+import { ExchangeView } from './components/ExchangeView';
+import { SystemLoginView } from './components/SystemLoginView';
+import { SuperAdminView } from './components/SuperAdminView'; 
 
-type Tab = 'DASHBOARD' | 'POS' | 'CLIENTS' | 'BILLING' | 'PRODUCTS' | 'REPORTS' | 'ACCESS' | 'APIS' | 'SETTINGS';
+type Tab = 'DASHBOARD' | 'POS' | 'CLIENTS' | 'BILLING' | 'PRODUCTS' | 'REPORTS' | 'EXCHANGE' | 'ACCESS' | 'APIS' | 'SETTINGS';
 
-// === CONSTANTS ===
+// === CONFIGURAÇÕES PADRÃO (Mapeando suas impressoras) ===
 const DEFAULT_SETTINGS: SystemSettings = {
     schoolName: 'Cantina Escolar',
     taxRate: 0,
-    kitchenPrinter: { name: '', ip: '', port: '9100', enabled: false },
-    counterPrinter: { name: '', ip: '', port: '9100', enabled: false },
+    kitchenPrinter: { 
+        name: 'Cozinha Principal 2', 
+        ip: '192.168.6.4', 
+        port: '9100', 
+        enabled: true 
+    },
+    counterPrinter: { 
+        name: 'Pre-Venda Cantina', 
+        ip: '192.168.6.5', 
+        port: '9100', 
+        enabled: true 
+    },
     printCustomerCopy: true,
-    printKitchenCopy: true
+    printKitchenCopy: true,
+    paymentMethods: { money: true, creditCard: false, debitCard: false, pix: false, studentAccount: true },
+    features: { allowNegativeBalance: true, enforceStockLimit: false, showStockAlerts: true, enableLoyaltySystem: true, blockOverdueStudents: false, maxOverdueDays: 30 }
 };
 
-// === SANITIZERS (MIGRATION HELPERS) ===
+// === FUNÇÕES DE SANITIZAÇÃO (Proteção de Dados) ===
 const sanitizeStudents = (data: any[]): Student[] => {
-    if (!Array.isArray(data)) return STUDENTS;
+    if (!Array.isArray(data)) return []; 
     return data.map(s => ({
         ...s,
         id: s.id || Date.now().toString(),
         name: s.name || 'Sem Nome',
-        history: Array.isArray(s.history) ? s.history.map((h: any) => ({
-            ...h,
-            date: new Date(h.date),
-            items: h.items || []
-        })) : [],
-        guardianName: s.guardianName || '',
-        guardianEmail: s.guardianEmail || '',
-        guardianPhone: s.guardianPhone || '',
-        guardianPassword: s.guardianPassword || '',
-        code: s.code || '',
-        isStaff: !!s.isStaff,
-        grade: s.grade || '',
+        history: Array.isArray(s.history) ? s.history.map((h: any) => ({ ...h, date: new Date(h.date), items: h.items || [] })) : [],
         balance: typeof s.balance === 'number' ? s.balance : 0,
         points: typeof s.points === 'number' ? s.points : 0,
-        notes: s.notes || ''
+        isActive: s.isActive ?? true
     }));
 };
 
 const sanitizeProducts = (data: any[]): Product[] => {
-    if (!Array.isArray(data)) return PRODUCTS;
+    if (!Array.isArray(data)) return [];
     return data.map(p => ({
         ...p,
         stock: typeof p.stock === 'number' ? p.stock : 0,
         costPrice: typeof p.costPrice === 'number' ? p.costPrice : 0,
-        code: p.code || ''
+        isActive: p.isActive ?? true,
+        isFavorite: p.isFavorite ?? false
     }));
 };
 
@@ -70,469 +74,308 @@ const sanitizeTransactions = (data: any[]): Transaction[] => {
     }));
 };
 
+const sanitizeSystemUsers = (data: any[]): SystemUser[] => {
+    if (!Array.isArray(data)) return [];
+    return data.map(u => ({ ...u, role: u.role || 'CASHIER' }));
+};
+
 const sanitizeSettings = (data: any): SystemSettings => {
-    // If data is null/undefined or not an object, return default immediately
     if (!data || typeof data !== 'object') return DEFAULT_SETTINGS;
-    
-    // Helper to ensure printer config has all fields
-    const sanitizePrinter = (p: any) => ({
-        name: p?.name || '',
-        ip: p?.ip || '',
-        port: p?.port || '9100',
-        enabled: !!p?.enabled
-    });
-
-    return {
-        schoolName: data.schoolName || DEFAULT_SETTINGS.schoolName,
-        taxRate: typeof data.taxRate === 'number' ? data.taxRate : DEFAULT_SETTINGS.taxRate,
-        printCustomerCopy: data.printCustomerCopy ?? DEFAULT_SETTINGS.printCustomerCopy,
-        printKitchenCopy: data.printKitchenCopy ?? DEFAULT_SETTINGS.printKitchenCopy,
-        kitchenPrinter: sanitizePrinter(data.kitchenPrinter),
-        counterPrinter: sanitizePrinter(data.counterPrinter)
-    };
+    return { ...DEFAULT_SETTINGS, ...data, kitchenPrinter: { ...DEFAULT_SETTINGS.kitchenPrinter, ...data.kitchenPrinter }, counterPrinter: { ...DEFAULT_SETTINGS.counterPrinter, ...data.counterPrinter }, features: { ...DEFAULT_SETTINGS.features, ...data.features }, paymentMethods: { ...DEFAULT_SETTINGS.paymentMethods, ...data.paymentMethods } };
 };
 
-const loadState = <T,>(key: string, fallback: T, sanitizer?: (data: any) => T): T => {
-  const saved = localStorage.getItem(key);
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      return sanitizer ? sanitizer(parsed) : parsed;
-    } catch (e) {
-      console.error(`Error parsing ${key}`, e);
-      return fallback;
-    }
-  }
-  return fallback;
+const sanitizeCashEntries = (data: any[]): CashEntry[] => {
+    if(!Array.isArray(data)) return [];
+    return data.map(c => ({ ...c, date: new Date(c.date) }));
 };
 
-const App = () => {
-  const [viewMode, setViewMode] = useState<'ADMIN' | 'GUARDIAN'>('ADMIN');
-  const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
-  const [triggerNewStudent, setTriggerNewStudent] = useState(false);
-  
-  const [products, setProducts] = useState<Product[]>(() => loadState('products', PRODUCTS, sanitizeProducts));
-  const [students, setStudents] = useState<Student[]>(() => loadState('students', STUDENTS, sanitizeStudents));
-  const [transactions, setTransactions] = useState<Transaction[]>(() => loadState('transactions', [], sanitizeTransactions));
-  
-  // Safe initialization of settings
-  const [settings, setSettings] = useState<SystemSettings>(() => {
-    const loaded = loadState('settings', DEFAULT_SETTINGS, sanitizeSettings);
-    // Double check to ensure we never have undefined settings
-    if (!loaded || !loaded.kitchenPrinter) return DEFAULT_SETTINGS;
-    return loaded;
-  });
+const sanitizeCompanies = (data: any[]): Company[] => {
+    if(!Array.isArray(data)) return [];
+    return data.map(c => ({ ...c, modules: Array.isArray(c.modules) ? c.modules : ['POS', 'FINANCIAL', 'INVENTORY', 'REPORTS'] }));
+};
 
-  useEffect(() => {
-    const handleHashChange = () => {
-        if (window.location.hash === '#/portal') {
-            setViewMode('GUARDIAN');
-        } else {
-            setViewMode('ADMIN');
-        }
-    };
-    handleHashChange();
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
-  useEffect(() => { localStorage.setItem('products', JSON.stringify(products)); }, [products]);
-  useEffect(() => { localStorage.setItem('students', JSON.stringify(students)); }, [students]);
-  useEffect(() => { localStorage.setItem('transactions', JSON.stringify(transactions)); }, [transactions]);
-  useEffect(() => { localStorage.setItem('settings', JSON.stringify(settings)); }, [settings]);
-
-  const handleExportData = () => {
-    const backupData = {
-        version: '1.4',
-        timestamp: new Date().toISOString(),
-        products,
-        students,
-        transactions,
-        settings
-    };
-    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Backup_Cantina_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleImportData = (file: File) => {
-    if (!file) return;
-
-    if(!window.confirm('ATENÇÃO: Isso substituirá os dados atuais pelos do backup. Deseja continuar?')) {
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
+// Carrega dados específicos de uma empresa
+const loadScopedState = <T,>(companyId: string, key: string, fallback: T, sanitizer?: (data: any) => T): T => {
+    const scopedKey = `${companyId}_${key}`;
+    const saved = localStorage.getItem(scopedKey);
+    if (saved) {
         try {
-            const json = JSON.parse(event.target?.result as string);
-            
-            if (json.products) setProducts(sanitizeProducts(json.products));
-            if (json.students) setStudents(sanitizeStudents(json.students));
-            if (json.transactions) setTransactions(sanitizeTransactions(json.transactions));
-            if (json.settings) setSettings(sanitizeSettings(json.settings));
-            
-            alert('Backup restaurado com sucesso!');
-        } catch (err) {
-            console.error(err);
-            alert('Erro ao restaurar backup: Arquivo inválido ou corrompido.');
+            const parsed = JSON.parse(saved);
+            return sanitizer ? sanitizer(parsed) : parsed;
+        } catch (e) {
+            console.error(`Erro ao ler ${scopedKey}`, e);
+            return fallback;
         }
-    };
-    reader.readAsText(file);
-  };
-
-  const handleTransactionComplete = (transaction: Transaction) => {
-    setTransactions(prev => [...prev, { ...transaction, status: 'VALID' }]);
-    
-    setProducts(prev => prev.map(p => {
-        const itemInCart = transaction.items.find(i => i.id === p.id);
-        if (itemInCart && p.stock !== undefined) {
-            return { ...p, stock: Math.max(0, p.stock - itemInCart.quantity) };
-        }
-        return p;
-    }));
-
-    if (transaction.studentId) {
-        // Calculate Points (1 point per R$ 1)
-        const pointsEarned = Math.floor(transaction.total);
-
-        setStudents(prev => prev.map(s => {
-            if (s.id === transaction.studentId) {
-                const newBalance = s.balance - transaction.total;
-                const newHistory: StudentHistoryEntry = {
-                    id: transaction.id,
-                    date: transaction.date,
-                    type: 'PURCHASE',
-                    description: `Compra - ${transaction.items.length} itens`,
-                    value: transaction.total,
-                    items: transaction.items,
-                    balanceAfter: newBalance
-                };
-                return { 
-                    ...s, 
-                    balance: newBalance,
-                    points: (s.points || 0) + pointsEarned,
-                    history: [newHistory, ...(s.history || [])]
-                };
-            }
-            return s;
-        }));
     }
-  };
-
-  const handleCancelTransaction = (transactionId: string) => {
-    const tx = transactions.find(t => t.id === transactionId);
-    if (!tx || tx.status === 'CANCELLED') return;
-
-    if (!window.confirm(`Deseja realmente cancelar a venda #${transactionId}? Isso estornará o saldo e o estoque.`)) {
-        return;
-    }
-
-    setTransactions(prev => prev.map(t => t.id === transactionId ? { ...t, status: 'CANCELLED' } : t));
-
-    setProducts(prev => prev.map(p => {
-        const itemInTx = tx.items.find(i => i.id === p.id);
-        if (itemInTx && p.stock !== undefined) {
-            return { ...p, stock: p.stock + itemInTx.quantity };
-        }
-        return p;
-    }));
-
-    if (tx.studentId) {
-        const pointsReversed = Math.floor(tx.total);
-
-        setStudents(prev => prev.map(s => {
-            if (s.id === tx.studentId) {
-                const newBalance = s.balance + tx.total;
-                const newHistory: StudentHistoryEntry = {
-                    id: `cancel-${Date.now()}`,
-                    date: new Date(),
-                    type: 'REFUND',
-                    description: `Estorno Venda #${transactionId}`,
-                    value: tx.total,
-                    balanceAfter: newBalance
-                };
-                return {
-                    ...s,
-                    balance: newBalance,
-                    points: Math.max(0, (s.points || 0) - pointsReversed),
-                    history: [newHistory, ...(s.history || [])]
-                };
-            }
-            return s;
-        }));
-    }
-    
-    alert('Venda cancelada com sucesso.');
-  };
-
-  const handleStudentPayment = (studentId: string, amount: number, description: string = 'Pagamento Recebido') => {
-      setStudents(prev => prev.map(s => {
-          if (s.id === studentId) {
-              const newBalance = s.balance + amount;
-              const newHistory: StudentHistoryEntry = {
-                  id: `pay-${Date.now()}`,
-                  date: new Date(),
-                  type: 'PAYMENT',
-                  description: description,
-                  value: amount,
-                  balanceAfter: newBalance
-              };
-              return {
-                  ...s,
-                  balance: newBalance,
-                  history: [newHistory, ...(s.history || [])]
-              };
-          }
-          return s;
-      }));
-  };
-
-  const handleStudentRefund = (studentId: string, amount: number, reason: string) => {
-      setStudents(prev => prev.map(s => {
-          if (s.id === studentId) {
-              const newBalance = s.balance + amount;
-              const newHistory: StudentHistoryEntry = {
-                  id: `ref-${Date.now()}`,
-                  date: new Date(),
-                  type: 'REFUND',
-                  description: `Estorno: ${reason}`,
-                  value: amount,
-                  balanceAfter: newBalance
-              };
-              return {
-                  ...s,
-                  balance: newBalance, 
-                  history: [newHistory, ...(s.history || [])]
-              };
-          }
-          return s;
-      }));
-  };
-
-  const handleAddStudent = (student: Student) => setStudents(prev => [...prev, student]);
-  const handleUpdateStudent = (student: Student) => setStudents(prev => prev.map(s => s.id === student.id ? student : s));
-  const handleDeleteStudent = (id: string) => setStudents(prev => prev.filter(s => s.id !== id));
-  
-  const handleSyncStudents = (newStudents: Student[]) => {
-    setStudents(prev => {
-        const merged = [...prev];
-        newStudents.forEach(newS => {
-            const index = merged.findIndex(s => s.id === newS.id || (s.code && newS.code && s.code === newS.code));
-            if (index >= 0) {
-                merged[index] = { 
-                    ...merged[index],
-                    ...newS,
-                    history: merged[index].history || [] 
-                };
-            } else {
-                merged.push({ ...newS, history: [] });
-            }
-        });
-        return merged;
-    });
-  };
-
-  const handleRequestQuickRegister = () => {
-      setActiveTab('CLIENTS');
-      setTriggerNewStudent(true);
-  };
-
-  const handleAddProduct = (product: Product) => setProducts(prev => [...prev, product]);
-  const handleUpdateProduct = (product: Product) => setProducts(prev => prev.map(p => p.id === product.id ? product : p));
-  const handleDeleteProduct = (id: string) => setProducts(prev => prev.filter(p => p.id !== id));
-  const handleImportProducts = (newProducts: Product[]) => setProducts(prev => [...prev, ...newProducts]);
-  
-  const handleSyncProducts = (newProducts: Product[]) => {
-      setProducts(prev => {
-        const merged = [...prev];
-        newProducts.forEach(newP => {
-            const index = merged.findIndex(p => p.id === newP.id);
-            if (index >= 0) {
-                merged[index] = newP;
-            } else {
-                merged.push(newP);
-            }
-        });
-        return merged;
-      });
-  };
-
-  if (viewMode === 'GUARDIAN') {
-      return (
-          <GuardianPortalView 
-            students={students} 
-            onExitPortal={() => window.location.hash = ''}
-            onUpdateStudent={handleUpdateStudent}
-          />
-      );
-  }
-
-  return (
-    <div className="flex h-screen bg-gray-100 text-gray-900 font-sans">
-      <aside className="w-20 bg-gray-900 flex flex-col items-center py-6 shrink-0 z-20">
-        <button 
-          onClick={() => setActiveTab('POS')}
-          className="mb-8 p-2 bg-brand-500 rounded-lg text-white hover:bg-brand-400 transition-colors shadow-lg shadow-brand-500/30"
-          title="Voltar para Vendas"
-        >
-           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v1c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>
-        </button>
-
-        <nav className="flex flex-col gap-4 w-full px-2 flex-1">
-          <NavButton 
-            active={activeTab === 'DASHBOARD'} 
-            onClick={() => setActiveTab('DASHBOARD')} 
-            icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>}
-            label="Início"
-          />
-          <NavButton 
-            active={activeTab === 'POS'} 
-            onClick={() => setActiveTab('POS')} 
-            icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>}
-            label="Vendas"
-          />
-          <NavButton 
-            active={activeTab === 'CLIENTS'} 
-            onClick={() => setActiveTab('CLIENTS')} 
-            icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>}
-            label="Alunos"
-          />
-          <NavButton 
-            active={activeTab === 'BILLING'} 
-            onClick={() => setActiveTab('BILLING')} 
-            icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a4.5 4.5 0 0 0 0 9H14.5a4.5 4.5 0 0 1 0 9H6"/></svg>}
-            label="Cobrança"
-          />
-          <NavButton 
-            active={activeTab === 'PRODUCTS'} 
-            onClick={() => setActiveTab('PRODUCTS')} 
-            icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>}
-            label="Produtos"
-          />
-          <NavButton 
-            active={activeTab === 'REPORTS'} 
-            onClick={() => setActiveTab('REPORTS')} 
-            icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>}
-            label="Relatórios"
-          />
-           <NavButton 
-            active={activeTab === 'ACCESS'} 
-            onClick={() => setActiveTab('ACCESS')} 
-            icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
-            label="Gestão"
-          />
-          <NavButton 
-            active={activeTab === 'APIS'} 
-            onClick={() => setActiveTab('APIS')} 
-            icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>}
-            label="APIs"
-          />
-          <NavButton 
-            active={activeTab === 'SETTINGS'} 
-            onClick={() => setActiveTab('SETTINGS')} 
-            icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>}
-            label="Config"
-          />
-        </nav>
-        
-        <div className="px-2 w-full mt-4">
-            <button 
-                onClick={() => window.location.hash = '#/portal'}
-                className="w-full p-2 rounded-lg text-blue-300 hover:text-white hover:bg-gray-800 flex flex-col items-center gap-1 border-t border-gray-700 pt-4"
-                title="Área do Responsável"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                <span className="text-[9px] font-bold">ÁREA DOS PAIS</span>
-            </button>
-        </div>
-
-      </aside>
-
-      <main className="flex-1 h-full overflow-hidden relative">
-        {activeTab === 'DASHBOARD' && (
-          <DashboardView products={products} transactions={transactions} />
-        )}
-        {activeTab === 'POS' && (
-          <PosView 
-            products={products}
-            students={students}
-            settings={settings}
-            onTransactionComplete={handleTransactionComplete}
-            onRequestQuickRegister={handleRequestQuickRegister}
-          />
-        )}
-        {activeTab === 'CLIENTS' && (
-          <CustomersView 
-            students={students}
-            onAddStudent={handleAddStudent}
-            onUpdateStudent={handleUpdateStudent}
-            onDeleteStudent={handleDeleteStudent}
-            onReceivePayment={(id, amount, desc) => handleStudentPayment(id, amount, desc)}
-            onRefundStudent={handleStudentRefund}
-            onImportStudents={handleSyncStudents}
-            initiateNewStudent={triggerNewStudent}
-            onNewStudentInitiated={() => setTriggerNewStudent(false)}
-          />
-        )}
-        {activeTab === 'BILLING' && (
-            <BillingView students={students} />
-        )}
-        {activeTab === 'PRODUCTS' && (
-          <ProductsView 
-            products={products}
-            onAddProduct={handleAddProduct}
-            onUpdateProduct={handleUpdateProduct}
-            onDeleteProduct={handleDeleteProduct}
-            onImportProducts={handleImportProducts}
-          />
-        )}
-        {activeTab === 'REPORTS' && (
-          <ReportsView 
-            transactions={transactions} 
-            students={students}
-            onCancelTransaction={handleCancelTransaction}
-          />
-        )}
-        {activeTab === 'ACCESS' && (
-            <AccessManagementView 
-                students={students}
-                onUpdateStudent={handleUpdateStudent}
-            />
-        )}
-        {activeTab === 'APIS' && (
-          <ApiSettingsView 
-            onSyncProducts={handleSyncProducts}
-            onSyncStudents={handleSyncStudents}
-          />
-        )}
-        {activeTab === 'SETTINGS' && (
-          <SettingsView 
-            settings={settings}
-            onUpdateSettings={setSettings}
-            onExportData={handleExportData}
-            onImportData={handleImportData}
-          />
-        )}
-      </main>
-    </div>
-  );
+    return fallback;
 };
 
-const NavButton = ({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string }) => (
-  <button 
-    onClick={onClick}
-    className={`w-full p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${active ? 'bg-brand-500 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
-    title={label}
-  >
-    {icon}
-    <span className="text-[10px] font-medium">{label}</span>
-  </button>
+// Componente de Botão do Menu
+const NavButton: React.FC<{ active: boolean; onClick: () => void; icon: React.ReactNode; label: string }> = ({ active, onClick, icon, label }) => (
+    <button onClick={onClick} className={`w-full p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${active ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/30' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`} title={label}>
+        {icon}
+        <span className="text-[10px] font-bold text-center leading-tight">{label}</span>
+    </button>
 );
+
+// === APLICAÇÃO DA EMPRESA (TENANT) ===
+// Definido FORA do App principal para não recarregar a cada renderização
+const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company, onExit }) => {
+    // Session State
+    const [currentUser, setCurrentUser] = useState<SystemUser | null>(() => {
+        const saved = localStorage.getItem(`${company.id}_active_session`);
+        return saved ? JSON.parse(saved) : null;
+    });
+    
+    const [viewMode, setViewMode] = useState<'ADMIN' | 'GUARDIAN' | 'LOGIN'>(currentUser ? 'ADMIN' : 'LOGIN');
+    const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
+    const [triggerNewStudent, setTriggerNewStudent] = useState(false);
+
+    // --- DATA STATES ---
+    const [products, setProducts] = useState<Product[]>(() => loadScopedState(company.id, 'products', PRODUCTS, sanitizeProducts));
+    const [students, setStudents] = useState<Student[]>(() => loadScopedState(company.id, 'students', STUDENTS, sanitizeStudents));
+    const [transactions, setTransactions] = useState<Transaction[]>(() => loadScopedState(company.id, 'transactions', [], sanitizeTransactions));
+    const [systemUsers, setSystemUsers] = useState<SystemUser[]>(() => loadScopedState(company.id, 'systemUsers', SYSTEM_USERS, sanitizeSystemUsers));
+    const [settings, setSettings] = useState<SystemSettings>(() => loadScopedState(company.id, 'settings', DEFAULT_SETTINGS, sanitizeSettings));
+    const [cashEntries, setCashEntries] = useState<CashEntry[]>(() => loadScopedState(company.id, 'cashEntries', [], sanitizeCashEntries));
+
+    // --- PERSISTENCE (Salvar dados sempre que mudarem) ---
+    useEffect(() => { localStorage.setItem(`${company.id}_products`, JSON.stringify(products)); }, [products, company.id]);
+    useEffect(() => { localStorage.setItem(`${company.id}_students`, JSON.stringify(students)); }, [students, company.id]);
+    useEffect(() => { localStorage.setItem(`${company.id}_transactions`, JSON.stringify(transactions)); }, [transactions, company.id]);
+    useEffect(() => { localStorage.setItem(`${company.id}_settings`, JSON.stringify(settings)); }, [settings, company.id]);
+    useEffect(() => { localStorage.setItem(`${company.id}_systemUsers`, JSON.stringify(systemUsers)); }, [systemUsers, company.id]);
+    useEffect(() => { localStorage.setItem(`${company.id}_cashEntries`, JSON.stringify(cashEntries)); }, [cashEntries, company.id]);
+    
+    // Save Session
+    useEffect(() => {
+        if (currentUser) localStorage.setItem(`${company.id}_active_session`, JSON.stringify(currentUser));
+        else localStorage.removeItem(`${company.id}_active_session`);
+    }, [currentUser, company.id]);
+
+    // Portal Hash Check
+    useEffect(() => {
+        const checkHash = () => {
+            if (window.location.href.includes('portal') || window.location.hash.includes('portal')) {
+                if (company.modules.includes('PARENTS_PORTAL')) {
+                    setViewMode('GUARDIAN');
+                }
+            }
+        };
+        checkHash();
+        window.addEventListener('hashchange', checkHash);
+        return () => window.removeEventListener('hashchange', checkHash);
+    }, [company.modules]);
+
+    // Handlers
+    const handleLoginSuccess = (user: SystemUser) => { setCurrentUser(user); setViewMode('ADMIN'); };
+    
+    const handleImportData = (file: File) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const json = JSON.parse(e.target?.result as string);
+                
+                // IMPORTANTE: Atualiza o localStorage DIRETAMENTE para garantir persistência
+                if (json.products) localStorage.setItem(`${company.id}_products`, JSON.stringify(sanitizeProducts(json.products)));
+                if (json.students) localStorage.setItem(`${company.id}_students`, JSON.stringify(sanitizeStudents(json.students)));
+                if (json.transactions) localStorage.setItem(`${company.id}_transactions`, JSON.stringify(sanitizeTransactions(json.transactions)));
+                if (json.settings) localStorage.setItem(`${company.id}_settings`, JSON.stringify(sanitizeSettings(json.settings)));
+                if (json.systemUsers) localStorage.setItem(`${company.id}_systemUsers`, JSON.stringify(sanitizeSystemUsers(json.systemUsers)));
+                if (json.cashEntries) localStorage.setItem(`${company.id}_cashEntries`, JSON.stringify(sanitizeCashEntries(json.cashEntries)));
+                
+                alert('Backup restaurado com sucesso! O sistema será reiniciado.');
+                window.location.reload();
+            } catch (err) { alert('Erro ao ler arquivo de backup.'); }
+        };
+        reader.readAsText(file);
+    };
+
+    const handleExportData = () => {
+        const data = { version: '2.1', companyId: company.id, date: new Date(), products, students, transactions, settings, systemUsers, cashEntries };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `Backup_${company.name}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // Transaction Logic
+    const handleTransactionComplete = (t: Transaction) => {
+        const newTx = { ...t, userId: currentUser?.id, userName: currentUser?.name, status: 'VALID' as const };
+        setTransactions(prev => [...prev, newTx]);
+        setProducts(prev => prev.map(p => {
+            const item = t.items.find(i => i.id === p.id);
+            return item && p.stock !== undefined ? { ...p, stock: Math.max(0, p.stock - item.quantity) } : p;
+        }));
+        if (t.studentId) {
+            setStudents(prev => prev.map(s => s.id === t.studentId ? { 
+                ...s, 
+                balance: s.balance - t.total, 
+                points: (s.points || 0) + Math.floor(t.total),
+                history: [{ id: t.id, date: t.date, type: 'PURCHASE', description: `Compra (${t.items.length} itens)`, value: t.total, items: t.items, balanceAfter: s.balance - t.total }, ...s.history]
+            } : s));
+        }
+    };
+
+    // CRUD Wrappers
+    const updateStudent = (s: Student) => setStudents(prev => prev.map(old => old.id === s.id ? s : old));
+    const addStudent = (s: Student) => setStudents(prev => [...prev, s]);
+    const deleteStudent = (id: string) => setStudents(prev => prev.filter(s => s.id !== id));
+    
+    // Render Views
+    if (viewMode === 'GUARDIAN') return <GuardianPortalView students={students} onExitPortal={() => { setViewMode('LOGIN'); window.location.hash = ''; }} onUpdateStudent={updateStudent} />;
+    if (viewMode === 'LOGIN') return <SystemLoginView users={systemUsers} onLogin={handleLoginSuccess} schoolName={settings.schoolName} onGoToPortal={() => company.modules.includes('PARENTS_PORTAL') ? setViewMode('GUARDIAN') : alert('Módulo inativo')} />;
+
+    const hasModule = (mod: AppModule) => company.modules.includes(mod);
+
+    return (
+        <div className="flex h-screen bg-gray-100 text-gray-900 font-sans">
+            <aside className="w-20 bg-gray-900 flex flex-col items-center py-6 shrink-0 z-20 print:hidden">
+                <button onClick={onExit} className="mb-4 p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white" title="Sair da Empresa"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg></button>
+                <nav className="flex flex-col gap-4 w-full px-2 flex-1 overflow-y-auto custom-scrollbar">
+                    <NavButton active={activeTab === 'DASHBOARD'} onClick={() => setActiveTab('DASHBOARD')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>} label="Início" />
+                    {hasModule('POS') && <NavButton active={activeTab === 'POS'} onClick={() => setActiveTab('POS')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>} label="Vendas" />}
+                    {hasModule('FINANCIAL') && <NavButton active={activeTab === 'CLIENTS'} onClick={() => setActiveTab('CLIENTS')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>} label="Alunos" />}
+                    {hasModule('FINANCIAL') && <NavButton active={activeTab === 'BILLING'} onClick={() => setActiveTab('BILLING')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a4.5 4.5 0 0 0 0 9H14.5a4.5 4.5 0 0 1 0 9H6"/></svg>} label="Cobrança" />}
+                    {hasModule('INVENTORY') && <NavButton active={activeTab === 'PRODUCTS'} onClick={() => setActiveTab('PRODUCTS')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>} label="Produtos" />}
+                    {hasModule('INVENTORY') && <NavButton active={activeTab === 'EXCHANGE'} onClick={() => setActiveTab('EXCHANGE')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>} label="Trocas" />}
+                    {hasModule('REPORTS') && <NavButton active={activeTab === 'REPORTS'} onClick={() => setActiveTab('REPORTS')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>} label="Relatórios" />}
+                    <div className="h-px bg-gray-700 w-full my-2"></div>
+                    <NavButton active={activeTab === 'ACCESS'} onClick={() => setActiveTab('ACCESS')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/></svg>} label="Gestão" />
+                    {hasModule('API_INTEGRATION') && <NavButton active={activeTab === 'APIS'} onClick={() => setActiveTab('APIS')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/></svg>} label="APIs" />}
+                    <NavButton active={activeTab === 'SETTINGS'} onClick={() => setActiveTab('SETTINGS')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/></svg>} label="Config" />
+                </nav>
+                {hasModule('PARENTS_PORTAL') && (
+                    <div className="px-2 w-full mt-4">
+                        <button onClick={() => { setViewMode('GUARDIAN'); window.location.hash = '#/portal'; }} className="w-full p-2 rounded-lg text-blue-300 hover:text-white hover:bg-gray-800 flex flex-col items-center gap-1 border-t border-gray-700 pt-4" title="Área do Responsável" > <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span className="text-[9px] font-bold">ÁREA DOS PAIS</span> </button>
+                    </div>
+                )}
+            </aside>
+
+            <main className="flex-1 h-full overflow-hidden relative print:w-full print:h-auto print:overflow-visible">
+                {activeTab === 'DASHBOARD' && <DashboardView products={products} transactions={transactions} students={students} />}
+                {activeTab === 'POS' && <PosView products={products} students={students} settings={settings} onTransactionComplete={handleTransactionComplete} onRequestQuickRegister={() => {setActiveTab('CLIENTS'); setTriggerNewStudent(true);}} onToggleFavorite={(id) => setProducts(p => p.map(prod => prod.id === id ? {...prod, isFavorite: !prod.isFavorite} : prod))} onAddCashEntry={(e) => setCashEntries(prev => [...prev, e])} cashEntries={cashEntries} />}
+                {activeTab === 'CLIENTS' && <CustomersView students={students} onAddStudent={addStudent} onUpdateStudent={updateStudent} onDeleteStudent={deleteStudent} onReceivePayment={(id, amt, desc) => setStudents(p => p.map(s => s.id === id ? { ...s, balance: s.balance + amt, history: [...s.history, { id: Date.now().toString(), date: new Date(), type: 'PAYMENT', description: desc || 'Pagamento', value: amt }] } : s))} onRefundStudent={(id, amt, r) => setStudents(p => p.map(s => s.id === id ? { ...s, balance: s.balance + amt, history: [...s.history, { id: Date.now().toString(), date: new Date(), type: 'REFUND', description: `Estorno: ${r}`, value: amt }] } : s))} onImportStudents={(s) => setStudents(prev => [...prev, ...s])} initiateNewStudent={triggerNewStudent} onNewStudentInitiated={() => setTriggerNewStudent(false)} />}
+                {activeTab === 'BILLING' && <BillingView students={students} />}
+                {activeTab === 'PRODUCTS' && <ProductsView products={products} onAddProduct={(p) => setProducts(prev => [...prev, p])} onUpdateProduct={(p) => setProducts(prev => prev.map(old => old.id === p.id ? p : old))} onDeleteProduct={(id) => setProducts(prev => prev.filter(p => p.id !== id))} onImportProducts={(p) => setProducts(prev => [...prev, ...p])} onToggleFavorite={(id) => setProducts(p => p.map(prod => prod.id === id ? {...prod, isFavorite: !prod.isFavorite} : prod))} />}
+                {activeTab === 'REPORTS' && <ReportsView transactions={transactions} students={students} onCancelTransaction={(id) => { const tx = transactions.find(t => t.id === id); if(!tx) return; setTransactions(prev => prev.map(t => t.id === id ? {...t, status: 'CANCELLED'} : t)); if(tx.studentId) setStudents(prev => prev.map(s => s.id === tx.studentId ? {...s, balance: s.balance + tx.total} : s)); }} />}
+                {activeTab === 'EXCHANGE' && <ExchangeView products={products} students={students} onConfirmExchange={(sid, pin, pout, diff, cash) => { setProducts(prev => prev.map(p => { let s = p.stock || 0; s += pin.filter(i => i.id === p.id).length; s -= pout.filter(o => o.id === p.id).length; return { ...p, stock: s }; })); if(sid && !cash) setStudents(prev => prev.map(s => s.id === sid ? { ...s, balance: s.balance - diff } : s)); }} />}
+                {activeTab === 'ACCESS' && <AccessManagementView students={students} onUpdateStudent={updateStudent} systemUsers={systemUsers} onAddSystemUser={(u) => setSystemUsers(prev => [...prev, u])} onUpdateSystemUser={(u) => setSystemUsers(prev => prev.map(old => old.id === u.id ? u : old))} onDeleteSystemUser={(id) => setSystemUsers(prev => prev.filter(u => u.id !== id))} activeModules={company.modules} />}
+                {activeTab === 'APIS' && <ApiSettingsView onSyncProducts={(p) => setProducts(prev => [...prev, ...p])} onSyncStudents={(s) => setStudents(prev => [...prev, ...s])} />}
+                {activeTab === 'SETTINGS' && <SettingsView settings={settings} onUpdateSettings={setSettings} onExportData={handleExportData} onImportData={handleImportData} />}
+            </main>
+        </div>
+    );
+};
+
+// === ROOT APP ===
+const App = () => {
+    // Estado Global das Empresas (Super Admin)
+    const [companies, setCompanies] = useState<Company[]>(() => {
+        const saved = localStorage.getItem('companies');
+        return saved ? sanitizeCompanies(JSON.parse(saved)) : [];
+    });
+
+    const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(() => {
+        return localStorage.getItem('last_selected_company');
+    });
+
+    // Portal global check
+    const [isPortalMode, setIsPortalMode] = useState(false);
+
+    // Persist Companies Immediately on Create/Update
+    const handleSaveCompany = (company: Company) => {
+        setCompanies(prev => {
+            const index = prev.findIndex(c => c.id === company.id);
+            let updatedCompanies;
+            if(index >= 0) { updatedCompanies = [...prev]; updatedCompanies[index] = company; } 
+            else { updatedCompanies = [...prev, company]; }
+            localStorage.setItem('companies', JSON.stringify(updatedCompanies)); // Direct Save
+            return updatedCompanies;
+        });
+    };
+
+    // Persist Companies Immediately on Delete
+    const handleDeleteCompany = (id: string) => {
+        setCompanies(prev => {
+            const updatedCompanies = prev.filter(c => c.id !== id);
+            localStorage.setItem('companies', JSON.stringify(updatedCompanies)); // Direct Save
+            return updatedCompanies;
+        });
+    };
+
+    // Persist Selection
+    useEffect(() => {
+        if (selectedCompanyId) localStorage.setItem('last_selected_company', selectedCompanyId);
+        else localStorage.removeItem('last_selected_company');
+    }, [selectedCompanyId]);
+
+    // Hash check for Portal
+    useEffect(() => {
+        const checkHash = () => {
+            const fullUrl = window.location.href.toLowerCase();
+            const decodedUrl = decodeURIComponent(fullUrl);
+            const doubleDecoded = decodeURIComponent(decodedUrl); // Handle double encoding
+            
+            if (fullUrl.includes('portal') || decodedUrl.includes('portal') || doubleDecoded.includes('portal') || window.location.hash.includes('portal')) {
+                setIsPortalMode(true);
+            } else {
+                setIsPortalMode(false);
+            }
+        };
+        checkHash();
+        window.addEventListener('hashchange', checkHash);
+        window.addEventListener('popstate', checkHash);
+        return () => { window.removeEventListener('hashchange', checkHash); window.removeEventListener('popstate', checkHash); };
+    }, []);
+
+    // Global Portal Logic
+    const [globalStudents, setGlobalStudents] = useState<Student[]>([]);
+    
+    useEffect(() => {
+        if (isPortalMode) {
+            const all: Student[] = [];
+            companies.forEach(c => {
+                const s = loadScopedState(c.id, 'students', [], sanitizeStudents);
+                if (c.modules.includes('PARENTS_PORTAL')) s.forEach(stu => all.push({ ...stu, notes: c.id })); 
+            });
+            setGlobalStudents(all);
+        }
+    }, [isPortalMode, companies]);
+
+    const handleGlobalUpdateStudent = (updatedStudent: Student) => {
+        let foundCompanyId: string | null = null;
+        for (const company of companies) {
+            const existingStudents = loadScopedState(company.id, 'students', [], sanitizeStudents);
+            if (existingStudents.some(s => s.id === updatedStudent.id)) { foundCompanyId = company.id; break; }
+        }
+        if (foundCompanyId) {
+            const existingStudents = loadScopedState(foundCompanyId, 'students', [], sanitizeStudents);
+            const newStudentsList = existingStudents.map(s => s.id === updatedStudent.id ? updatedStudent : s);
+            localStorage.setItem(`${foundCompanyId}_students`, JSON.stringify(newStudentsList));
+            setGlobalStudents(prev => prev.map(s => s.id === updatedStudent.id ? updatedStudent : s));
+        }
+    };
+
+    if (isPortalMode) {
+        return <GuardianPortalView students={globalStudents} onExitPortal={() => {setIsPortalMode(false); window.location.hash='';}} onUpdateStudent={handleGlobalUpdateStudent} />;
+    }
+
+    const currentCompany = selectedCompanyId ? companies.find(c => c.id === selectedCompanyId) : null;
+
+    if (!selectedCompanyId || !currentCompany) {
+        return <SuperAdminView 
+            companies={companies} 
+            onSaveCompany={handleSaveCompany} 
+            onSelectCompany={setSelectedCompanyId} 
+            onDeleteCompany={handleDeleteCompany} 
+        />;
+    }
+
+    return <TenantApp key={currentCompany.id} company={currentCompany} onExit={() => setSelectedCompanyId(null)} />;
+};
 
 export default App;

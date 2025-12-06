@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Student } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Student, StudentHistoryEntry } from '../types';
 
 interface GuardianPortalViewProps {
   students: Student[];
@@ -8,12 +8,19 @@ interface GuardianPortalViewProps {
   onUpdateStudent: (student: Student) => void;
 }
 
+// Helper type for merging history from multiple students
+interface FamilyHistoryEntry extends StudentHistoryEntry {
+    studentName: string;
+}
+
 export const GuardianPortalView: React.FC<GuardianPortalViewProps> = ({ students, onExitPortal, onUpdateStudent }) => {
-  const [loggedInStudent, setLoggedInStudent] = useState<Student | null>(null);
+  // Store all students belonging to this guardian
+  const [familyGroup, setFamilyGroup] = useState<Student[]>([]);
   
   // Login State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [showForgotModal, setShowForgotModal] = useState(false);
 
@@ -23,28 +30,73 @@ export const GuardianPortalView: React.FC<GuardianPortalViewProps> = ({ students
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changePassError, setChangePassError] = useState('');
 
+  // Load saved credentials on mount
+  useEffect(() => {
+      const saved = localStorage.getItem('cantina_remember_guardian');
+      if (saved) {
+          try {
+              const { e, p } = JSON.parse(saved);
+              setEmail(e);
+              setPassword(p);
+              setRememberMe(true);
+          } catch (err) {
+              // Ignore invalid json
+          }
+      }
+  }, []);
+
+  // Sync local family group with global students state (for updates/balance changes)
+  useEffect(() => {
+      if (familyGroup.length > 0) {
+          // Re-fetch the family group from the updated 'students' prop based on the current email
+          // We use the email of the first logged in student as the key
+          const currentEmail = familyGroup[0].guardianEmail?.toLowerCase();
+          if (currentEmail) {
+              const updatedGroup = students.filter(s => 
+                  s.guardianEmail?.toLowerCase() === currentEmail &&
+                  // Ensure password match to avoid leaking if email is reused without same password (unlikely but safe)
+                  s.guardianPassword === familyGroup[0].guardianPassword 
+              );
+              if (updatedGroup.length > 0) {
+                  setFamilyGroup(updatedGroup);
+              }
+          }
+      }
+  }, [students]);
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     
-    // Simple validation logic
-    const found = students.find(s => 
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedPass = password.trim();
+
+    // Find ALL students matching credentials
+    const foundStudents = students.filter(s => 
         s.guardianEmail && 
-        s.guardianEmail.trim().toLowerCase() === email.trim().toLowerCase() && 
-        s.guardianPassword === password.trim()
+        s.guardianEmail.trim().toLowerCase() === trimmedEmail && 
+        s.guardianPassword === trimmedPass
     );
 
-    if (found) {
-        setLoggedInStudent(found);
+    if (foundStudents.length > 0) {
+        if (rememberMe) {
+            localStorage.setItem('cantina_remember_guardian', JSON.stringify({ e: trimmedEmail, p: trimmedPass }));
+        } else {
+            localStorage.removeItem('cantina_remember_guardian');
+        }
+        setFamilyGroup(foundStudents);
     } else {
         setError('Usuário ou senha incorretos.');
     }
   };
 
   const handleLogout = () => {
-    setLoggedInStudent(null);
-    setEmail('');
-    setPassword('');
+    setFamilyGroup([]);
+    // Don't clear email/pass if remember me is on, just logout
+    if (!rememberMe) {
+        setEmail('');
+        setPassword('');
+    }
   };
 
   const handleChangePassword = (e: React.FormEvent) => {
@@ -61,28 +113,51 @@ export const GuardianPortalView: React.FC<GuardianPortalViewProps> = ({ students
           return;
       }
 
-      if (loggedInStudent) {
-          const updatedStudent = {
-              ...loggedInStudent,
-              guardianPassword: newPassword
-          };
+      if (familyGroup.length > 0) {
+          // Update password for ALL students in the group
+          familyGroup.forEach(student => {
+              const updatedStudent = {
+                  ...student,
+                  guardianPassword: newPassword
+              };
+              onUpdateStudent(updatedStudent);
+          });
           
-          // Update in global app state (localStorage)
-          onUpdateStudent(updatedStudent);
-          
-          // Update local state
-          setLoggedInStudent(updatedStudent);
-          
-          // Reset forms
+          // Update saved credential if remember me is on
+          if (rememberMe) {
+              localStorage.setItem('cantina_remember_guardian', JSON.stringify({ e: email, p: newPassword }));
+          }
+
           setNewPassword('');
           setConfirmPassword('');
           setShowChangePasswordModal(false);
-          alert('Senha alterada com sucesso!');
+          alert('Senha alterada com sucesso para todos os dependentes!');
       }
   };
 
+  // --- COMPUTED VALUES ---
+  const totalBalance = useMemo(() => {
+      return familyGroup.reduce((acc, s) => acc + s.balance, 0);
+  }, [familyGroup]);
+
+  const guardianName = familyGroup.length > 0 ? (familyGroup[0].guardianName || 'Responsável') : '';
+
+  const mergedHistory = useMemo(() => {
+      let allHistory: FamilyHistoryEntry[] = [];
+      familyGroup.forEach(student => {
+          const studentHistory = (student.history || []).map(h => ({
+              ...h,
+              studentName: student.name // Tag transaction with student name
+          }));
+          allHistory = [...allHistory, ...studentHistory];
+      });
+      // Sort by date descending
+      return allHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [familyGroup]);
+
+
   // --- LOGIN SCREEN ---
-  if (!loggedInStudent) {
+  if (familyGroup.length === 0) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-blue-500 to-cyan-400 flex flex-col items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 relative">
@@ -91,7 +166,7 @@ export const GuardianPortalView: React.FC<GuardianPortalViewProps> = ({ students
                         <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                     </div>
                     <h1 className="text-2xl font-bold text-gray-800">Portal do Responsável</h1>
-                    <p className="text-gray-500 text-sm mt-1">Acompanhe o saldo e consumo da cantina.</p>
+                    <p className="text-gray-500 text-sm mt-1">Acompanhe o saldo e consumo da família.</p>
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-6">
@@ -116,7 +191,19 @@ export const GuardianPortalView: React.FC<GuardianPortalViewProps> = ({ students
                             className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
                             placeholder="••••••"
                         />
-                         <div className="text-right mt-2">
+                         <div className="flex justify-between items-center mt-2">
+                            <div className="flex items-center">
+                                <input 
+                                    id="remember-me-guardian" 
+                                    type="checkbox" 
+                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                />
+                                <label htmlFor="remember-me-guardian" className="ml-2 block text-sm text-gray-600 cursor-pointer select-none">
+                                    Salvar senha
+                                </label>
+                            </div>
                             <button 
                                 type="button"
                                 onClick={() => setShowForgotModal(true)}
@@ -177,10 +264,10 @@ export const GuardianPortalView: React.FC<GuardianPortalViewProps> = ({ students
     <div className="min-h-screen bg-gray-50 flex flex-col">
         {/* Header */}
         <header className="bg-blue-600 text-white p-6 shadow-lg">
-            <div className="max-w-4xl mx-auto flex justify-between items-center">
+            <div className="max-w-4xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
-                    <h1 className="text-xl font-bold">Olá, {loggedInStudent.guardianName || 'Responsável'}</h1>
-                    <p className="text-blue-100 text-sm">Aluno: {loggedInStudent.name}</p>
+                    <h1 className="text-xl font-bold">Olá, {guardianName}</h1>
+                    <p className="text-blue-100 text-sm">Visualizando dados de {familyGroup.length} dependente(s)</p>
                 </div>
                 <div className="flex gap-2">
                     <button 
@@ -201,52 +288,81 @@ export const GuardianPortalView: React.FC<GuardianPortalViewProps> = ({ students
 
         <main className="flex-1 max-w-4xl mx-auto w-full p-4 md:p-6 space-y-6">
             
-            {/* Balance Card */}
+            {/* Total Balance Card */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
-                <p className="text-gray-500 uppercase text-xs font-bold tracking-wider mb-2">Saldo Atual</p>
+                <p className="text-gray-500 uppercase text-xs font-bold tracking-wider mb-2">Saldo Total da Família</p>
                 <div className="flex items-end gap-2">
-                    <span className={`text-4xl font-black ${loggedInStudent.balance < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        {loggedInStudent.balance < 0 ? '- R$ ' : 'R$ '} 
-                        {Math.abs(loggedInStudent.balance).toFixed(2)}
+                    <span className={`text-4xl font-black ${totalBalance < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {totalBalance < 0 ? '- R$ ' : 'R$ '} 
+                        {Math.abs(totalBalance).toFixed(2)}
                     </span>
                     <span className="text-gray-400 mb-2 text-sm font-medium">
-                        {loggedInStudent.balance < 0 ? '(Devedor)' : '(Crédito)'}
+                        {totalBalance < 0 ? '(Devedor)' : '(Crédito)'}
                     </span>
                 </div>
-                {loggedInStudent.balance < 0 && (
+                {totalBalance < 0 && (
                     <div className="mt-4 bg-red-50 text-red-700 p-3 rounded-lg text-sm border border-red-100">
-                        Por favor, entre em contato com a escola para regularizar pendências.
+                        Atenção: Existem pendências financeiras no grupo familiar.
                     </div>
                 )}
             </div>
 
-            {/* History List */}
+            {/* Individual Student Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {familyGroup.map(student => (
+                    <div key={student.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 flex justify-between items-center hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-lg">
+                                {student.name.charAt(0)}
+                            </div>
+                            <div>
+                                <p className="font-bold text-gray-800 leading-tight">{student.name}</p>
+                                <p className="text-xs text-gray-500">{student.grade}</p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs text-gray-400 uppercase font-bold mb-0.5">Saldo</p>
+                            <p className={`font-bold ${student.balance < 0 ? 'text-red-500' : 'text-green-600'}`}>
+                                {student.balance < 0 ? '-' : ''}R$ {Math.abs(student.balance).toFixed(2)}
+                            </p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Unified History List */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="p-4 border-b border-gray-100 bg-gray-50/50">
-                    <h2 className="font-bold text-gray-800">Extrato de Movimentações</h2>
+                <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                    <h2 className="font-bold text-gray-800">Extrato Unificado</h2>
+                    <span className="text-xs text-gray-500">Últimas movimentações de todos os dependentes</span>
                 </div>
                 <div className="divide-y divide-gray-100">
-                    {(!loggedInStudent.history || loggedInStudent.history.length === 0) ? (
+                    {mergedHistory.length === 0 ? (
                         <p className="p-8 text-center text-gray-400">Nenhuma movimentação registrada.</p>
                     ) : (
-                        loggedInStudent.history.map(entry => (
-                            <div key={entry.id} className="p-4 hover:bg-gray-50 transition-colors">
-                                <div className="flex justify-between items-start mb-2">
-                                    <div>
-                                        <p className="text-xs text-gray-500 mb-1">{new Date(entry.date).toLocaleString('pt-BR')}</p>
-                                        <p className="font-bold text-gray-800">{entry.description}</p>
+                        mergedHistory.map((entry, idx) => (
+                            <div key={`${entry.id}-${idx}`} className="p-4 hover:bg-gray-50 transition-colors">
+                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-2 gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase whitespace-nowrap">
+                                            {entry.studentName}
+                                        </span>
+                                        <p className="text-xs text-gray-500">{new Date(entry.date).toLocaleString('pt-BR')}</p>
                                     </div>
-                                    <div className="text-right">
+                                    <div className="flex-1 md:text-right">
                                         <p className={`font-bold ${entry.type === 'PURCHASE' ? 'text-red-500' : 'text-green-600'}`}>
                                             {entry.type === 'PURCHASE' ? '-' : '+'} R$ {entry.value.toFixed(2)}
                                         </p>
                                     </div>
                                 </div>
+                                
+                                <p className="font-medium text-gray-800 mb-2">{entry.description}</p>
+
                                 {entry.items && entry.items.length > 0 && (
-                                    <div className="mt-2 bg-gray-50 p-3 rounded border border-gray-100 text-sm text-gray-600">
+                                    <div className="bg-gray-50 p-3 rounded border border-gray-100 text-sm text-gray-600">
                                         <ul className="list-disc list-inside">
-                                            {entry.items.map((item, idx) => (
-                                                <li key={idx}><span className="font-medium">{item.quantity}x</span> {item.name}</li>
+                                            {entry.items.map((item, i) => (
+                                                <li key={i}><span className="font-medium">{item.quantity}x</span> {item.name}</li>
                                             ))}
                                         </ul>
                                     </div>
@@ -262,7 +378,10 @@ export const GuardianPortalView: React.FC<GuardianPortalViewProps> = ({ students
         {showChangePasswordModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                 <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4">Alterar Senha</h3>
+                    <h3 className="text-lg font-bold text-gray-800 mb-4">Alterar Senha da Família</h3>
+                    <div className="bg-yellow-50 border border-yellow-100 text-yellow-800 p-3 rounded-lg text-xs mb-4">
+                        Atenção: A nova senha será aplicada para o acesso de <b>todos</b> os dependentes vinculados a este e-mail.
+                    </div>
                     <form onSubmit={handleChangePassword} className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Nova Senha</label>

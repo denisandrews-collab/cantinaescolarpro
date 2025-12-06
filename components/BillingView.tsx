@@ -189,7 +189,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ students }) => {
                 <input 
                     type="text"
                     placeholder="Nome do aluno..."
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                    className="w-full border border-gray-700 bg-gray-800 text-white placeholder-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
                 />
@@ -199,7 +199,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ students }) => {
                 <select 
                     value={inputTypeFilter}
                     onChange={e => setInputTypeFilter(e.target.value as UserTypeFilter)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 bg-white"
+                    className="w-full border border-gray-700 bg-gray-800 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
                 >
                     <option value="ALL">Todos</option>
                     <option value="STUDENT">Alunos</option>
@@ -210,7 +210,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ students }) => {
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">De</label>
                 <input 
                     type="date" 
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                    className="border border-gray-700 bg-gray-800 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
                     value={inputDateStart}
                     onChange={e => setInputDateStart(e.target.value)}
                 />
@@ -219,7 +219,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ students }) => {
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Até</label>
                 <input 
                     type="date" 
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                    className="border border-gray-700 bg-gray-800 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
                     value={inputDateEnd}
                     onChange={e => setInputDateEnd(e.target.value)}
                 />

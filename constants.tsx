@@ -1,5 +1,5 @@
 
-import { Product, ProductCategory, Student } from './types';
+import { Product, ProductCategory, Student, SystemUser } from './types';
 import React from 'react';
 
 // SVG Icons for categories
@@ -94,4 +94,9 @@ export const STUDENTS: Student[] = [
     guardianName: 'Eduarda Lima',
     guardianPhone: '11966665555'
   },
+];
+
+export const SYSTEM_USERS: SystemUser[] = [
+    { id: 'u1', name: 'Administrador', login: 'admin', password: '123', role: 'ADMIN' },
+    { id: 'u2', name: 'Operador de Caixa', login: 'caixa', password: '123', role: 'CASHIER' },
 ];
