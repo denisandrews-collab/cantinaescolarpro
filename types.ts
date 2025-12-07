@@ -113,6 +113,13 @@ export interface SystemSettings {
     blockOverdueStudents: boolean; // Bloquear alunos inadimplentes
     maxOverdueDays: number; // Dias tolerados de atraso
   };
+  integrations?: {
+    itau?: {
+      enabled: boolean;
+      clientId?: string;
+      pixKey?: string;
+    };
+  };
 }
 
 // === SYSTEM ACCESS TYPES ===

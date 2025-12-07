@@ -1,6 +1,7 @@
 
+
 import React, { useState } from 'react';
-import { Student, SystemUser, UserRole } from '../types';
+import { Student, SystemUser, UserRole, AppModule } from '../types';
 
 interface AccessManagementViewProps {
   students: Student[];
@@ -10,6 +11,7 @@ interface AccessManagementViewProps {
   onAddSystemUser?: (user: SystemUser) => void;
   onUpdateSystemUser?: (user: SystemUser) => void;
   onDeleteSystemUser?: (id: string) => void;
+  activeModules?: AppModule[];
 }
 
 type AccessTab = 'PARENTS' | 'SYSTEM';
@@ -20,7 +22,8 @@ export const AccessManagementView: React.FC<AccessManagementViewProps> = ({
     systemUsers = [],
     onAddSystemUser,
     onUpdateSystemUser,
-    onDeleteSystemUser
+    onDeleteSystemUser,
+    activeModules
 }) => {
   const [activeTab, setActiveTab] = useState<AccessTab>('PARENTS');
   
