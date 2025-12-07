@@ -82,5 +82,31 @@
 </head>
   <body class="bg-gray-50 text-gray-900 font-sans antialiased">
     <div id="root"></div>
+
+    <!-- Error overlay and handlers to surface runtime errors to the page for debugging -->
+    <script>
+      (function(){
+        function showError(err){
+          try{
+            var overlay = document.getElementById('__error_overlay__');
+            if(!overlay){
+              overlay = document.createElement('div');
+              overlay.id = '__error_overlay__';
+              overlay.style = 'position:fixed;left:0;top:0;right:0;background:#fee;color:#900;padding:12px;z-index:99999;white-space:pre-wrap;font-family:monospace;max-height:50vh;overflow:auto;border-bottom:2px solid #fbb';
+              document.body.appendChild(overlay);
+            }
+            var text = err && err.stack ? err.stack : String(err);
+            overlay.textContent = 'JavaScript error:\n' + text;
+            console.error(err);
+          }catch(e){ /* ignore */ }
+        }
+        window.addEventListener('error', function(e){ showError(e.error || e.message || e); });
+        window.addEventListener('unhandledrejection', function(e){ showError(e.reason || e); });
+        var origConsoleError = console.error.bind(console);
+        console.error = function(){ try{ showError(Array.prototype.slice.call(arguments).map(function(a){ try{ return a.stack || JSON.stringify(a); }catch(e){ return String(a); } }).join(' ')); }catch(e){}; origConsoleError.apply(null, arguments); };
+      })();
+    </script>
+
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>
