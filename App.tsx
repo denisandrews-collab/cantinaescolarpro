@@ -13,7 +13,7 @@ import { GuardianPortalView } from './components/GuardianPortalView';
 import { DashboardView } from './components/DashboardView';
 import { ExchangeView } from './components/ExchangeView';
 import { SystemLoginView } from './components/SystemLoginView';
-import { SuperAdminView } from './components/SuperAdminView'; 
+import { SuperAdminView } from './components/SuperAdminView';
 
 type Tab = 'DASHBOARD' | 'POS' | 'CLIENTS' | 'BILLING' | 'PRODUCTS' | 'REPORTS' | 'EXCHANGE' | 'ACCESS' | 'APIS' | 'SETTINGS';
 
@@ -21,17 +21,17 @@ type Tab = 'DASHBOARD' | 'POS' | 'CLIENTS' | 'BILLING' | 'PRODUCTS' | 'REPORTS' 
 const DEFAULT_SETTINGS: SystemSettings = {
     schoolName: 'Cantina Escolar',
     taxRate: 0,
-    kitchenPrinter: { 
-        name: 'Cozinha Principal 2', 
-        ip: '192.168.6.4', 
-        port: '9100', 
-        enabled: true 
+    kitchenPrinter: {
+        name: 'Cozinha Principal 2',
+        ip: '192.168.6.4',
+        port: '9100',
+        enabled: true
     },
-    counterPrinter: { 
-        name: 'Pre-Venda Cantina', 
-        ip: '192.168.6.5', 
-        port: '9100', 
-        enabled: true 
+    counterPrinter: {
+        name: 'Pre-Venda Cantina',
+        ip: '192.168.6.5',
+        port: '9100',
+        enabled: true
     },
     printCustomerCopy: true,
     printKitchenCopy: true,
@@ -41,7 +41,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
 
 // === FUNÇÕES DE SANITIZAÇÃO (Proteção de Dados) ===
 const sanitizeStudents = (data: any[]): Student[] => {
-    if (!Array.isArray(data)) return []; 
+    if (!Array.isArray(data)) return [];
     return data.map(s => ({
         ...s,
         id: s.id || Date.now().toString(),
@@ -81,7 +81,12 @@ const sanitizeSystemUsers = (data: any[]): SystemUser[] => {
 
 const sanitizeSettings = (data: any): SystemSettings => {
     if (!data || typeof data !== 'object') return DEFAULT_SETTINGS;
-    return { ...DEFAULT_SETTINGS, ...data, kitchenPrinter: { ...DEFAULT_SETTINGS.kitchenPrinter, ...data.kitchenPrinter }, counterPrinter: { ...DEFAULT_SETTINGS.counterPrinter, ...data.counterPrinter }, features: { ...DEFAULT_SETTINGS.features, ...data.features }, paymentMethods: { ...DEFAULT_SETTINGS.paymentMethods, ...data.paymentMethods } };
+    return {
+        ...DEFAULT_SETTINGS,
+        ...data,
+        kitchenPrinter: { ...DEFAULT_SETTINGS.kitchenPrinter, ...(data.kitchenPrinter || {}) },
+        counterPrinter: { ...DEFAULT_SETTINGS.counterPrinter, ...(data.counterPrinter || {}) }
+    } as SystemSettings;
 };
 
 const sanitizeCashEntries = (data: any[]): CashEntry[] => {
@@ -112,21 +117,20 @@ const loadScopedState = <T,>(companyId: string, key: string, fallback: T, saniti
 
 // Componente de Botão do Menu
 const NavButton: React.FC<{ active: boolean; onClick: () => void; icon: React.ReactNode; label: string }> = ({ active, onClick, icon, label }) => (
-    <button onClick={onClick} className={`w-full p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${active ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/30' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`} title={label}>
+    <button onClick={onClick} className={`w-full p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${active ? 'bg-brand-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>
         {icon}
         <span className="text-[10px] font-bold text-center leading-tight">{label}</span>
     </button>
 );
 
 // === APLICAÇÃO DA EMPRESA (TENANT) ===
-// Definido FORA do App principal para não recarregar a cada renderização
 const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company, onExit }) => {
     // Session State
     const [currentUser, setCurrentUser] = useState<SystemUser | null>(() => {
         const saved = localStorage.getItem(`${company.id}_active_session`);
         return saved ? JSON.parse(saved) : null;
     });
-    
+
     const [viewMode, setViewMode] = useState<'ADMIN' | 'GUARDIAN' | 'LOGIN'>(currentUser ? 'ADMIN' : 'LOGIN');
     const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
     const [triggerNewStudent, setTriggerNewStudent] = useState(false);
@@ -146,7 +150,7 @@ const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company
     useEffect(() => { localStorage.setItem(`${company.id}_settings`, JSON.stringify(settings)); }, [settings, company.id]);
     useEffect(() => { localStorage.setItem(`${company.id}_systemUsers`, JSON.stringify(systemUsers)); }, [systemUsers, company.id]);
     useEffect(() => { localStorage.setItem(`${company.id}_cashEntries`, JSON.stringify(cashEntries)); }, [cashEntries, company.id]);
-    
+
     // Save Session
     useEffect(() => {
         if (currentUser) localStorage.setItem(`${company.id}_active_session`, JSON.stringify(currentUser));
@@ -169,13 +173,13 @@ const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company
 
     // Handlers
     const handleLoginSuccess = (user: SystemUser) => { setCurrentUser(user); setViewMode('ADMIN'); };
-    
+
     const handleImportData = (file: File) => {
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
                 const json = JSON.parse(e.target?.result as string);
-                
+
                 // IMPORTANTE: Atualiza o localStorage DIRETAMENTE para garantir persistência
                 if (json.products) localStorage.setItem(`${company.id}_products`, JSON.stringify(sanitizeProducts(json.products)));
                 if (json.students) localStorage.setItem(`${company.id}_students`, JSON.stringify(sanitizeStudents(json.students)));
@@ -183,7 +187,7 @@ const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company
                 if (json.settings) localStorage.setItem(`${company.id}_settings`, JSON.stringify(sanitizeSettings(json.settings)));
                 if (json.systemUsers) localStorage.setItem(`${company.id}_systemUsers`, JSON.stringify(sanitizeSystemUsers(json.systemUsers)));
                 if (json.cashEntries) localStorage.setItem(`${company.id}_cashEntries`, JSON.stringify(sanitizeCashEntries(json.cashEntries)));
-                
+
                 alert('Backup restaurado com sucesso! O sistema será reiniciado.');
                 window.location.reload();
             } catch (err) { alert('Erro ao ler arquivo de backup.'); }
@@ -211,11 +215,11 @@ const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company
             return item && p.stock !== undefined ? { ...p, stock: Math.max(0, p.stock - item.quantity) } : p;
         }));
         if (t.studentId) {
-            setStudents(prev => prev.map(s => s.id === t.studentId ? { 
-                ...s, 
-                balance: s.balance - t.total, 
+            setStudents(prev => prev.map(s => s.id === t.studentId ? {
+                ...s,
+                balance: s.balance - t.total,
                 points: (s.points || 0) + Math.floor(t.total),
-                history: [{ id: t.id, date: t.date, type: 'PURCHASE', description: `Compra (${t.items.length} itens)`, value: t.total, items: t.items, balanceAfter: s.balance - t.total }, ...s.history]
+                history: [{ id: t.id, date: t.date, type: 'PURCHASE', description: `Compra (${t.items.length} itens)`, value: t.total, items: t.items, balanceAfter: s.balance - t.total }, ...(s.history || [])]
             } : s));
         }
     };
@@ -224,46 +228,50 @@ const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company
     const updateStudent = (s: Student) => setStudents(prev => prev.map(old => old.id === s.id ? s : old));
     const addStudent = (s: Student) => setStudents(prev => [...prev, s]);
     const deleteStudent = (id: string) => setStudents(prev => prev.filter(s => s.id !== id));
-    
+
     // Render Views
     if (viewMode === 'GUARDIAN') return <GuardianPortalView students={students} onExitPortal={() => { setViewMode('LOGIN'); window.location.hash = ''; }} onUpdateStudent={updateStudent} />;
-    if (viewMode === 'LOGIN') return <SystemLoginView users={systemUsers} onLogin={handleLoginSuccess} schoolName={settings.schoolName} onGoToPortal={() => company.modules.includes('PARENTS_PORTAL') ? setViewMode('GUARDIAN') : alert('Módulo inativo')} />;
+    if (viewMode === 'LOGIN') return <SystemLoginView users={systemUsers} onLogin={handleLoginSuccess} schoolName={settings.schoolName} onGoToPortal={() => { if (company.modules.includes('PARENTS_PORTAL')) { setViewMode('GUARDIAN'); window.location.hash = '#/portal'; } }} />;
 
     const hasModule = (mod: AppModule) => company.modules.includes(mod);
 
     return (
         <div className="flex h-screen bg-gray-100 text-gray-900 font-sans">
             <aside className="w-20 bg-gray-900 flex flex-col items-center py-6 shrink-0 z-20 print:hidden">
-                <button onClick={onExit} className="mb-4 p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white" title="Sair da Empresa"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg></button>
-                <nav className="flex flex-col gap-4 w-full px-2 flex-1 overflow-y-auto custom-scrollbar">
-                    <NavButton active={activeTab === 'DASHBOARD'} onClick={() => setActiveTab('DASHBOARD')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>} label="Início" />
-                    {hasModule('POS') && <NavButton active={activeTab === 'POS'} onClick={() => setActiveTab('POS')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>} label="Vendas" />}
-                    {hasModule('FINANCIAL') && <NavButton active={activeTab === 'CLIENTS'} onClick={() => setActiveTab('CLIENTS')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>} label="Alunos" />}
-                    {hasModule('FINANCIAL') && <NavButton active={activeTab === 'BILLING'} onClick={() => setActiveTab('BILLING')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a4.5 4.5 0 0 0 0 9H14.5a4.5 4.5 0 0 1 0 9H6"/></svg>} label="Cobrança" />}
-                    {hasModule('INVENTORY') && <NavButton active={activeTab === 'PRODUCTS'} onClick={() => setActiveTab('PRODUCTS')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>} label="Produtos" />}
-                    {hasModule('INVENTORY') && <NavButton active={activeTab === 'EXCHANGE'} onClick={() => setActiveTab('EXCHANGE')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>} label="Trocas" />}
-                    {hasModule('REPORTS') && <NavButton active={activeTab === 'REPORTS'} onClick={() => setActiveTab('REPORTS')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>} label="Relatórios" />}
+                <button onClick={onExit} className="mb-4 p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white" title="Sair da Empresa">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M10 17l5-5-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </button>
+                <nav className="flex flex-col gap-4 w-full px-2 flex-1 overflow-y-auto">
+                    <NavButton active={activeTab === 'DASHBOARD'} onClick={() => setActiveTab('DASHBOARD')} icon={<svg width="24" height="24" />} label="Início" />
+                    {hasModule('POS') && <NavButton active={activeTab === 'POS'} onClick={() => setActiveTab('POS')} icon={<svg width="24" height="24" />} label="PDV" />}
+                    {hasModule('FINANCIAL') && <NavButton active={activeTab === 'CLIENTS'} onClick={() => setActiveTab('CLIENTS')} icon={<svg width="24" height="24" />} label="Clientes" />}
+                    {hasModule('FINANCIAL') && <NavButton active={activeTab === 'BILLING'} onClick={() => setActiveTab('BILLING')} icon={<svg width="24" height="24" />} label="Cobrança" />}
+                    {hasModule('INVENTORY') && <NavButton active={activeTab === 'PRODUCTS'} onClick={() => setActiveTab('PRODUCTS')} icon={<svg width="24" height="24" />} label="Produtos" />}
+                    {hasModule('INVENTORY') && <NavButton active={activeTab === 'EXCHANGE'} onClick={() => setActiveTab('EXCHANGE')} icon={<svg width="24" height="24" />} label="Troca" />}
+                    {hasModule('REPORTS') && <NavButton active={activeTab === 'REPORTS'} onClick={() => setActiveTab('REPORTS')} icon={<svg width="24" height="24" />} label="Relatórios" />}
                     <div className="h-px bg-gray-700 w-full my-2"></div>
-                    <NavButton active={activeTab === 'ACCESS'} onClick={() => setActiveTab('ACCESS')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/></svg>} label="Gestão" />
-                    {hasModule('API_INTEGRATION') && <NavButton active={activeTab === 'APIS'} onClick={() => setActiveTab('APIS')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/></svg>} label="APIs" />}
-                    <NavButton active={activeTab === 'SETTINGS'} onClick={() => setActiveTab('SETTINGS')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/></svg>} label="Config" />
+                    <NavButton active={activeTab === 'ACCESS'} onClick={() => setActiveTab('ACCESS')} icon={<svg width="24" height="24" />} label="Acesso" />
+                    {hasModule('API_INTEGRATION') && <NavButton active={activeTab === 'APIS'} onClick={() => setActiveTab('APIS')} icon={<svg width="24" height="24" />} label="APIs" />}
+                    <NavButton active={activeTab === 'SETTINGS'} onClick={() => setActiveTab('SETTINGS')} icon={<svg width="24" height="24" />} label="Config" />
                 </nav>
                 {hasModule('PARENTS_PORTAL') && (
                     <div className="px-2 w-full mt-4">
-                        <button onClick={() => { setViewMode('GUARDIAN'); window.location.hash = '#/portal'; }} className="w-full p-2 rounded-lg text-blue-300 hover:text-white hover:bg-gray-800 flex flex-col items-center gap-1 border-t border-gray-700 pt-4" title="Área do Responsável" > <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span className="text-[9px] font-bold">ÁREA DOS PAIS</span> </button>
+                        <button onClick={() => { setViewMode('GUARDIAN'); window.location.hash = '#/portal'; }} className="w-full p-2 rounded-lg text-blue-300 hover:text-white hover:bg-gray-800">Portal Responsável</button>
                     </div>
                 )}
             </aside>
 
             <main className="flex-1 h-full overflow-hidden relative print:w-full print:h-auto print:overflow-visible">
                 {activeTab === 'DASHBOARD' && <DashboardView products={products} transactions={transactions} students={students} />}
-                {activeTab === 'POS' && <PosView products={products} students={students} settings={settings} onTransactionComplete={handleTransactionComplete} onRequestQuickRegister={() => {setActiveTab('CLIENTS'); setTriggerNewStudent(true);}} onToggleFavorite={(id) => setProducts(p => p.map(prod => prod.id === id ? {...prod, isFavorite: !prod.isFavorite} : prod))} onAddCashEntry={(e) => setCashEntries(prev => [...prev, e])} cashEntries={cashEntries} />}
-                {activeTab === 'CLIENTS' && <CustomersView students={students} onAddStudent={addStudent} onUpdateStudent={updateStudent} onDeleteStudent={deleteStudent} onReceivePayment={(id, amt, desc) => setStudents(p => p.map(s => s.id === id ? { ...s, balance: s.balance + amt, history: [...s.history, { id: Date.now().toString(), date: new Date(), type: 'PAYMENT', description: desc || 'Pagamento', value: amt }] } : s))} onRefundStudent={(id, amt, r) => setStudents(p => p.map(s => s.id === id ? { ...s, balance: s.balance + amt, history: [...s.history, { id: Date.now().toString(), date: new Date(), type: 'REFUND', description: `Estorno: ${r}`, value: amt }] } : s))} onImportStudents={(s) => setStudents(prev => [...prev, ...s])} initiateNewStudent={triggerNewStudent} onNewStudentInitiated={() => setTriggerNewStudent(false)} />}
+                {activeTab === 'POS' && <PosView products={products} students={students} settings={settings} onTransactionComplete={handleTransactionComplete} onRequestQuickRegister={() => {setActiveTab('CLIENTS'); setTriggerNewStudent(true);}} />}
+                {activeTab === 'CLIENTS' && <CustomersView students={students} onAddStudent={addStudent} onUpdateStudent={updateStudent} onDeleteStudent={deleteStudent} onReceivePayment={(id, amt) => {
+                    setStudents(prev => prev.map(s => s.id === id ? { ...s, balance: s.balance - amt } : s));
+                }} />}
                 {activeTab === 'BILLING' && <BillingView students={students} />}
-                {activeTab === 'PRODUCTS' && <ProductsView products={products} onAddProduct={(p) => setProducts(prev => [...prev, p])} onUpdateProduct={(p) => setProducts(prev => prev.map(old => old.id === p.id ? p : old))} onDeleteProduct={(id) => setProducts(prev => prev.filter(p => p.id !== id))} onImportProducts={(p) => setProducts(prev => [...prev, ...p])} onToggleFavorite={(id) => setProducts(p => p.map(prod => prod.id === id ? {...prod, isFavorite: !prod.isFavorite} : prod))} />}
-                {activeTab === 'REPORTS' && <ReportsView transactions={transactions} students={students} onCancelTransaction={(id) => { const tx = transactions.find(t => t.id === id); if(!tx) return; setTransactions(prev => prev.map(t => t.id === id ? {...t, status: 'CANCELLED'} : t)); if(tx.studentId) setStudents(prev => prev.map(s => s.id === tx.studentId ? {...s, balance: s.balance + tx.total} : s)); }} />}
-                {activeTab === 'EXCHANGE' && <ExchangeView products={products} students={students} onConfirmExchange={(sid, pin, pout, diff, cash) => { setProducts(prev => prev.map(p => { let s = p.stock || 0; s += pin.filter(i => i.id === p.id).length; s -= pout.filter(o => o.id === p.id).length; return { ...p, stock: s }; })); if(sid && !cash) setStudents(prev => prev.map(s => s.id === sid ? { ...s, balance: s.balance - diff } : s)); }} />}
-                {activeTab === 'ACCESS' && <AccessManagementView students={students} onUpdateStudent={updateStudent} systemUsers={systemUsers} onAddSystemUser={(u) => setSystemUsers(prev => [...prev, u])} onUpdateSystemUser={(u) => setSystemUsers(prev => prev.map(old => old.id === u.id ? u : old))} onDeleteSystemUser={(id) => setSystemUsers(prev => prev.filter(u => u.id !== id))} activeModules={company.modules} />}
+                {activeTab === 'PRODUCTS' && <ProductsView products={products} onAddProduct={(p) => setProducts(prev => [...prev, p])} onUpdateProduct={(p) => setProducts(prev => prev.map(old => old.id === p.id ? p : old))} />}
+                {activeTab === 'REPORTS' && <ReportsView transactions={transactions} students={students} onCancelTransaction={(id) => { const tx = transactions.find(t => t.id === id); if(!tx) return; setTransactions(prev => prev.map(t => t.id === id ? { ...t, status: 'CANCELLED' } : t)); }} />}
+                {activeTab === 'EXCHANGE' && <ExchangeView products={products} students={students} onConfirmExchange={(sid, pin, pout, diff, cash) => { /* lógica de troca */ }} />}
+                {activeTab === 'ACCESS' && <AccessManagementView students={students} onUpdateStudent={updateStudent} systemUsers={systemUsers} onAddSystemUser={(u) => setSystemUsers(prev => [...prev, u])} />}
                 {activeTab === 'APIS' && <ApiSettingsView onSyncProducts={(p) => setProducts(prev => [...prev, ...p])} onSyncStudents={(s) => setStudents(prev => [...prev, ...s])} />}
                 {activeTab === 'SETTINGS' && <SettingsView settings={settings} onUpdateSettings={setSettings} onExportData={handleExportData} onImportData={handleImportData} />}
             </main>
@@ -291,7 +299,7 @@ const App = () => {
         setCompanies(prev => {
             const index = prev.findIndex(c => c.id === company.id);
             let updatedCompanies;
-            if(index >= 0) { updatedCompanies = [...prev]; updatedCompanies[index] = company; } 
+            if(index >= 0) { updatedCompanies = [...prev]; updatedCompanies[index] = company; }
             else { updatedCompanies = [...prev, company]; }
             localStorage.setItem('companies', JSON.stringify(updatedCompanies)); // Direct Save
             return updatedCompanies;
@@ -319,7 +327,7 @@ const App = () => {
             const fullUrl = window.location.href.toLowerCase();
             const decodedUrl = decodeURIComponent(fullUrl);
             const doubleDecoded = decodeURIComponent(decodedUrl); // Handle double encoding
-            
+
             if (fullUrl.includes('portal') || decodedUrl.includes('portal') || doubleDecoded.includes('portal') || window.location.hash.includes('portal')) {
                 setIsPortalMode(true);
             } else {
@@ -334,13 +342,13 @@ const App = () => {
 
     // Global Portal Logic
     const [globalStudents, setGlobalStudents] = useState<Student[]>([]);
-    
+
     useEffect(() => {
         if (isPortalMode) {
             const all: Student[] = [];
             companies.forEach(c => {
                 const s = loadScopedState(c.id, 'students', [], sanitizeStudents);
-                if (c.modules.includes('PARENTS_PORTAL')) s.forEach(stu => all.push({ ...stu, notes: c.id })); 
+                if (c.modules.includes('PARENTS_PORTAL')) s.forEach(stu => all.push({ ...stu, notes: c.id }));
             });
             setGlobalStudents(all);
         }
@@ -367,11 +375,11 @@ const App = () => {
     const currentCompany = selectedCompanyId ? companies.find(c => c.id === selectedCompanyId) : null;
 
     if (!selectedCompanyId || !currentCompany) {
-        return <SuperAdminView 
-            companies={companies} 
-            onSaveCompany={handleSaveCompany} 
-            onSelectCompany={setSelectedCompanyId} 
-            onDeleteCompany={handleDeleteCompany} 
+        return <SuperAdminView
+            companies={companies}
+            onSaveCompany={handleSaveCompany}
+            onSelectCompany={setSelectedCompanyId}
+            onDeleteCompany={handleDeleteCompany}
         />;
     }
 
