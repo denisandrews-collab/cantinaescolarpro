@@ -1,0 +1,4 @@
+{
+  "kitchenPrinter": { "name": "Cozinha Principal 2", "ip": "192.168.6.4", "port": "9100", "enabled": true },
+  "counterPrinter": { "name": "Pre-Venda Cantina", "ip": "192.168.6.5", "port": "9100", "enabled": true }
+}

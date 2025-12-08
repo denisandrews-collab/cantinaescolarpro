@@ -1,0 +1,12 @@
+{
+  "name": "cantina-print-server",
+  "version": "0.1.0",
+  "main": "print-server.js",
+  "scripts": {
+    "start": "node print-server.js",
+    "dev": "nodemon print-server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
