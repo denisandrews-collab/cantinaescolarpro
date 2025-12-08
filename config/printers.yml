@@ -1,0 +1,13 @@
+printers:
+  # Nome lógico das impressoras; mapeie para nomes do sistema/servidor conforme necessário.
+  default_printer: "default"
+  client_copy_printer: "printer_cliente"
+  kitchen_copy_printer: "printer_cozinha"
+
+  # Configurações de impressão (opcionais)
+  receipt:
+    width_mm: 80
+    margins_mm: 2
+    dpi: 203
+    # Layouts: compact | detailed
+    layout: "compact"

@@ -1,0 +1,13 @@
+/* Estilos de impressão otimizados para térmicas de 80 mm */
+
+@media print {
+  body * { visibility: hidden; }
+  .receipt, .receipt * { visibility: visible; }
+  .receipt { position: absolute; left: 0; top: 0; width: 80mm; }
+}
+
+/* Estilos da pré-visualização e botão no app (não impressos) */
+.recibo-component { margin: 8px 0; }
+.recibo-component .preview { margin-top: 6px; }
+.preview-receipt { font-family: monospace; font-size: 12px; border: 1px solid #ddd; padding: 6px; width: 220px; background: #fff; }
+button { padding: 6px 10px; cursor: pointer; }
