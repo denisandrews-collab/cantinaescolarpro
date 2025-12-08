@@ -1,8 +1,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './App';
+import App from '../App';
 
-console.log('DIAG: index.tsx carregou'); // certifique-se de ver isto no console
+console.log('DIAG: main.tsx carregou'); // certifique-se de ver isto no console
 
 try {
   const container = document.getElementById('root');
@@ -22,7 +22,7 @@ try {
     console.log('DIAG: React.render() chamado');
   }
 } catch (err) {
-  console.error('DIAG: erro ao renderizar index.tsx', err);
+  console.error('DIAG: erro ao renderizar main.tsx', err);
   const pre = document.createElement('pre');
   pre.style.color = 'red';
   pre.textContent = String(err);
