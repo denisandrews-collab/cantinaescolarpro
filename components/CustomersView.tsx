@@ -48,6 +48,10 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
   const [batchAmount, setBatchAmount] = useState('');
   const [isPayrollDeduction, setIsPayrollDeduction] = useState(false);
 
+  // History pagination state
+  const [historyPage, setHistoryPage] = useState<{[key: string]: number}>({});
+  const HISTORY_PAGE_SIZE = 20;
+
   // Form State
   const [formData, setFormData] = useState({ 
       name: '', 
@@ -516,13 +520,43 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                             </tr>
                             
                             {/* EXPANDED HISTORY ROW */}
-                            {expandedStudentId === student.id && (
+                            {expandedStudentId === student.id && (() => {
+                                const currentPage = historyPage[student.id] || 0;
+                                const totalPages = Math.ceil(student.history.length / HISTORY_PAGE_SIZE);
+                                const startIdx = currentPage * HISTORY_PAGE_SIZE;
+                                const endIdx = startIdx + HISTORY_PAGE_SIZE;
+                                const paginatedHistory = student.history.slice(startIdx, endIdx);
+                                
+                                return (
                                 <tr className="bg-gray-50 shadow-inner">
                                     <td colSpan={9} className="p-4">
                                         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                                            <h4 className="px-4 py-2 bg-gray-100 text-xs font-bold text-gray-500 uppercase border-b border-gray-200">
-                                                Histórico Financeiro - {student.name}
-                                            </h4>
+                                            <div className="px-4 py-2 bg-gray-100 border-b border-gray-200 flex items-center justify-between">
+                                                <h4 className="text-xs font-bold text-gray-500 uppercase">
+                                                    Histórico Financeiro - {student.name} ({student.history.length} registros)
+                                                </h4>
+                                                {totalPages > 1 && (
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => setHistoryPage(prev => ({...prev, [student.id]: Math.max(0, currentPage - 1)}))}
+                                                            disabled={currentPage === 0}
+                                                            className="px-2 py-1 bg-white rounded text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-200"
+                                                        >
+                                                            ←
+                                                        </button>
+                                                        <span className="text-xs font-medium text-gray-600">
+                                                            Página {currentPage + 1} de {totalPages}
+                                                        </span>
+                                                        <button
+                                                            onClick={() => setHistoryPage(prev => ({...prev, [student.id]: Math.min(totalPages - 1, currentPage + 1)}))}
+                                                            disabled={currentPage >= totalPages - 1}
+                                                            className="px-2 py-1 bg-white rounded text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-200"
+                                                        >
+                                                            →
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
                                             {(!student.history || student.history.length === 0) ? (
                                                 <p className="p-4 text-center text-sm text-gray-400">Nenhum registro encontrado.</p>
                                             ) : (
@@ -538,7 +572,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {student.history.map(entry => (
+                                                        {paginatedHistory.map(entry => (
                                                             <React.Fragment key={entry.id}>
                                                             <tr className={`border-b border-gray-50 last:border-0 hover:bg-gray-50 ${expandedTxId === entry.id ? 'bg-blue-50' : ''}`}>
                                                                 <td className="px-4 py-2 text-gray-600 whitespace-nowrap">{new Date(entry.date).toLocaleString('pt-BR')}</td>
@@ -616,7 +650,8 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                                         </div>
                                     </td>
                                 </tr>
-                            )}
+                                );
+                            })()}
                         </React.Fragment>
                     );
                 })

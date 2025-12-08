@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Product, Student, Transaction, SystemSettings, StudentHistoryEntry, SystemUser, Company, AppModule, CashEntry } from './types';
 import { PRODUCTS, STUDENTS, SYSTEM_USERS } from './constants';
 import { PosView } from './components/PosView';
@@ -45,12 +45,13 @@ const loadScopedState = <T,>(companyId: string, key: string, fallback: T, saniti
     return fallback;
 };
 
-const NavButton: React.FC<{ active: boolean; onClick: () => void; icon: React.ReactNode; label: string }> = ({ active, onClick, icon, label }) => (
+// Memoized NavButton to prevent unnecessary re-renders
+const NavButton = React.memo<{ active: boolean; onClick: () => void; icon: React.ReactNode; label: string }>(({ active, onClick, icon, label }) => (
     <button onClick={onClick} className={`w-full p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${active ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/30' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`} title={label}>
         {icon}
         <span className="text-[10px] font-bold text-center leading-tight">{label}</span>
     </button>
-);
+));
 
 // === TENANT APP ===
 const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company, onExit }) => {
@@ -69,13 +70,31 @@ const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company
     const [settings, setSettings] = useState<SystemSettings>(() => loadScopedState(company.id, 'settings', DEFAULT_SETTINGS, sanitizeSettings));
     const [cashEntries, setCashEntries] = useState<CashEntry[]>(() => loadScopedState(company.id, 'cashEntries', [], sanitizeCashEntries));
 
+    // Debounced localStorage save to improve performance
+    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    
     useEffect(() => {
-        localStorage.setItem(`${company.id}_products`, JSON.stringify(products));
-        localStorage.setItem(`${company.id}_students`, JSON.stringify(students));
-        localStorage.setItem(`${company.id}_transactions`, JSON.stringify(transactions));
-        localStorage.setItem(`${company.id}_settings`, JSON.stringify(settings));
-        localStorage.setItem(`${company.id}_systemUsers`, JSON.stringify(systemUsers));
-        localStorage.setItem(`${company.id}_cashEntries`, JSON.stringify(cashEntries));
+        // Clear any pending save
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+        }
+        
+        // Debounce localStorage writes by 500ms
+        saveTimeoutRef.current = setTimeout(() => {
+            localStorage.setItem(`${company.id}_products`, JSON.stringify(products));
+            localStorage.setItem(`${company.id}_students`, JSON.stringify(students));
+            localStorage.setItem(`${company.id}_transactions`, JSON.stringify(transactions));
+            localStorage.setItem(`${company.id}_settings`, JSON.stringify(settings));
+            localStorage.setItem(`${company.id}_systemUsers`, JSON.stringify(systemUsers));
+            localStorage.setItem(`${company.id}_cashEntries`, JSON.stringify(cashEntries));
+        }, 500);
+        
+        // Cleanup on unmount
+        return () => {
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+            }
+        };
     }, [products, students, transactions, settings, systemUsers, cashEntries, company.id]);
     
     useEffect(() => {

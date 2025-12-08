@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { ProductCategory, Product, CartItem, Student, Transaction, SystemSettings, CashEntry, PaymentMethod } from '../types';
 import { CategoryIcons } from '../constants';
 import { Receipt } from './Receipt';
@@ -77,8 +77,8 @@ export const PosView: React.FC<PosViewProps> = ({
       return students.filter(s => (s.isActive !== false) && (s.name.toLowerCase().includes(q) || s.grade.toLowerCase().includes(q) || s.code?.toLowerCase().includes(q)));
   }, [students, studentSearchQuery]);
 
-  // OVERDUE LOGIC
-  const checkOverdueStatus = (student: Student) => {
+  // OVERDUE LOGIC - Optimized with proper memoization
+  const checkOverdueStatus = useCallback((student: Student) => {
       if (!settings.features.blockOverdueStudents) return { isOverdue: false, days: 0 };
       if (student.balance >= 0) return { isOverdue: false, days: 0 };
       const history = [...student.history].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -94,8 +94,12 @@ export const PosView: React.FC<PosViewProps> = ({
           if (diffDays > settings.features.maxOverdueDays) return { isOverdue: true, days: diffDays };
       }
       return { isOverdue: false, days: 0 };
-  };
-  const overdueStatus = useMemo(() => { if (!selectedStudent) return { isOverdue: false, days: 0 }; return checkOverdueStatus(selectedStudent); }, [selectedStudent, settings.features.blockOverdueStudents, settings.features.maxOverdueDays]);
+  }, [settings.features.blockOverdueStudents, settings.features.maxOverdueDays]);
+  
+  const overdueStatus = useMemo(() => { 
+      if (!selectedStudent) return { isOverdue: false, days: 0 }; 
+      return checkOverdueStatus(selectedStudent); 
+  }, [selectedStudent, checkOverdueStatus]);
 
   // Handlers
   const addToCart = (product: Product) => {
