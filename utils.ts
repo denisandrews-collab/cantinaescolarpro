@@ -75,9 +75,13 @@ export const toggleSetItem = <T>(set: Set<T>, item: T): Set<T> => {
 
 /**
  * Generate a random password (6 uppercase alphanumeric characters)
+ * Uses crypto.getRandomValues for secure random generation
  */
 export const generateRandomPassword = (): string => {
-  return Math.random().toString(36).slice(-6).toUpperCase();
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const array = new Uint8Array(6);
+  crypto.getRandomValues(array);
+  return Array.from(array, (byte) => chars[byte % chars.length]).join('');
 };
 
 /**

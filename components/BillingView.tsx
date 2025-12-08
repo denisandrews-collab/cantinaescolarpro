@@ -147,18 +147,6 @@ export const BillingView: React.FC<BillingViewProps> = ({ students }) => {
 
       return { amount, details };
   };
-              const date = new Date(h.date).toLocaleDateString('pt-BR');
-              const itemNames = h.items ? h.items.map(i => i.name).join(', ') : h.description;
-              const displayItems = itemNames.length > 30 ? itemNames.substring(0, 27) + '...' : itemNames;
-              details += `- ${date}: ${displayItems} (R$ ${h.value.toFixed(2)})\n`;
-          });
-          if (!appliedFilter.start && !appliedFilter.end && student.history.length > 5) {
-              details += "...ver mais no balcão.\n";
-          }
-      }
-
-      return { amount, details };
-  };
 
   const getWhatsAppLink = (student: Student) => {
     if (!student.guardianPhone) return '';

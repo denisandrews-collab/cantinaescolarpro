@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 
 /**
  * Custom hook for managing selection state (checkboxes, multi-select)

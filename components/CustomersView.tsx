@@ -96,7 +96,6 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
   const handleToggleSelectAll = () => {
     toggleSelectAll(filteredStudents.map(s => s.id));
   };
-  };
 
   // toggleSelectAll is now removed, using handleToggleSelectAll instead
 
