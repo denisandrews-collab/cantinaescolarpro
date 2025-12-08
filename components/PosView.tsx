@@ -132,9 +132,11 @@ export const PosView: React.FC<PosViewProps> = ({
   
   const addItemNote = (productId: string) => { 
       const note = prompt("Obs:"); 
-      if (note !== null) setCart(previousCart => previousCart.map(item => 
-          item.id === productId ? { ...item, notes: note } : item
-      )); 
+      if (note !== null) {
+          setCart(previousCart => previousCart.map(item => 
+              item.id === productId ? { ...item, notes: note } : item
+          ));
+      }
   };
   
   // Student Modal Selection
