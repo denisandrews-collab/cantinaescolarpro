@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Transaction, Student } from '../types';
+import { formatDate, getToday, safeDate, formatCurrency } from '../utils';
 
 interface ReportsViewProps {
   transactions: Transaction[];
@@ -15,7 +16,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ transactions, students
   const [activeReport, setActiveReport] = useState<ReportType>('SALES');
 
   // Date State - Initialize with Today
-  const getToday = () => new Date().toISOString().split('T')[0];
   const [dateStartInput, setDateStartInput] = useState(getToday());
   const [dateEndInput, setDateEndInput] = useState(getToday());
   
@@ -38,20 +38,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ transactions, students
       setAppliedFilter({ start: dateStartInput, end: dateEndInput });
   };
 
-  // Helper to safely format YYYY-MM-DD to DD/MM/YYYY for display without timezone issues
-  const formatDateDisplay = (dateStr: string) => {
-      if (!dateStr) return '-';
-      const parts = dateStr.split('-');
-      if (parts.length !== 3) return dateStr;
-      const [year, month, day] = parts;
-      return `${day}/${month}/${year}`;
-  };
-
-  // Safe date parser
-  const safeDate = (dateInput: Date | string) => {
-      const d = new Date(dateInput);
-      return isNaN(d.getTime()) ? new Date() : d;
-  };
+  // formatDate, getToday, and safeDate are now imported from utils
 
   // Filter Transactions Logic
   const filteredTransactions = useMemo(() => {
@@ -257,7 +244,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ transactions, students
           </button>
 
           <div className="flex-1 text-right text-gray-400 text-xs self-center">
-             Período aplicado: <span className="font-mono text-gray-600 font-bold">{formatDateDisplay(appliedFilter.start)}</span> até <span className="font-mono text-gray-600 font-bold">{formatDateDisplay(appliedFilter.end)}</span>
+             Período aplicado: <span className="font-mono text-gray-600 font-bold">{formatDate(appliedFilter.start)}</span> até <span className="font-mono text-gray-600 font-bold">{formatDate(appliedFilter.end)}</span>
           </div>
       </div>
 

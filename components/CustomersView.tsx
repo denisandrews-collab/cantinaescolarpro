@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Student } from '../types';
+import { formatCurrency, generateRandomPassword } from '../utils';
+import { useSelection, useSearch } from '../hooks';
 
 interface CustomersViewProps {
   students: Student[];
@@ -25,11 +27,11 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
   const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
   
   // Search & Filter State
-  const [searchQuery, setSearchQuery] = useState('');
+  const { searchQuery, setSearchQuery } = useSearch();
   const [filterType, setFilterType] = useState<FilterType>('ALL');
 
   // Selection State
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const { selectedIds, toggleSelection, toggleSelectAll, clearSelection, setSelectedIds } = useSelection();
 
   // Payment Modal State
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -90,21 +92,13 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
       return filtered;
   }, [students, searchQuery, filterType]);
 
-  // Handle Selection
-  const toggleSelection = (id: string) => {
-      const newSet = new Set(selectedIds);
-      if (newSet.has(id)) newSet.delete(id);
-      else newSet.add(id);
-      setSelectedIds(newSet);
+  // Handle Selection - now using hook
+  const handleToggleSelectAll = () => {
+    toggleSelectAll(filteredStudents.map(s => s.id));
+  };
   };
 
-  const toggleSelectAll = () => {
-      if (selectedIds.size === filteredStudents.length && filteredStudents.length > 0) {
-          setSelectedIds(new Set());
-      } else {
-          setSelectedIds(new Set(filteredStudents.map(s => s.id)));
-      }
-  };
+  // toggleSelectAll is now removed, using handleToggleSelectAll instead
 
   const handleOpenModal = (student?: Student) => {
     if (student) {
@@ -136,9 +130,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
       onUpdateStudent({ ...student, isActive: !student.isActive });
   };
 
-  const generatePassword = () => {
-    return Math.random().toString(36).slice(-6).toUpperCase();
-  };
+  // generatePassword is now replaced by utility function
 
   const triggerWelcomeEmail = (studentName: string, guardianName: string, email: string, pass: string) => {
       // Robusta URL Generation
@@ -175,7 +167,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
       });
     } else {
       // Create new student
-      const newPassword = generatePassword();
+      const newPassword = generateRandomPassword();
       const newStudent: Student = {
         id: Date.now().toString(),
         history: [],
@@ -325,7 +317,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
              balance: parseFloat(parts[7]) || 0,
              points: 0,
              history: [],
-             guardianPassword: generatePassword(), // Generate password for imported students
+             guardianPassword: generateRandomPassword(), // Generate password for imported students
              isStaff: false, // Default to student
              isActive: true
            });
@@ -410,7 +402,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                     type="checkbox" 
                     className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer"
                     checked={filteredStudents.length > 0 && selectedIds.size === filteredStudents.length}
-                    onChange={toggleSelectAll}
+                    onChange={handleToggleSelectAll}
                   />
               </th>
               <th className="p-4 w-16 text-center">Ativo</th>

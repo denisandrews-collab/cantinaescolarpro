@@ -1,6 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { Student } from '../types';
+import { formatDate, formatCurrency } from '../utils';
+import { useSelection } from '../hooks';
 
 interface BillingViewProps {
   students: Student[];
@@ -24,7 +26,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ students }) => {
   });
 
   // Batch Selection State
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const { selectedIds, toggleSelection, toggleSelectAll, clearSelection, setSelectedIds } = useSelection();
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [batchChannel, setBatchChannel] = useState<BatchChannel>('WHATSAPP');
   const [sentIds, setSentIds] = useState<Set<string>>(new Set()); // Track who was sent in the current batch session
@@ -36,14 +38,13 @@ export const BillingView: React.FC<BillingViewProps> = ({ students }) => {
           type: inputTypeFilter
       });
       // Clear selection when filter changes to avoid confusion
-      setSelectedIds(new Set());
+      clearSelection();
   };
 
   // Helper to format date
   const formatDateDisplay = (dateStr: string) => {
     if (!dateStr) return 'Início';
-    const [year, month, day] = dateStr.split('-');
-    return `${day}/${month}/${year}`;
+    return formatDate(dateStr);
   };
 
   // Filter Logic
@@ -92,23 +93,10 @@ export const BillingView: React.FC<BillingViewProps> = ({ students }) => {
   const totalDebt = debtStudents.reduce((acc, s) => acc + Math.abs(s.balance), 0);
 
   // --- SELECTION LOGIC ---
-  const toggleSelection = (id: string) => {
-      const newSet = new Set(selectedIds);
-      if (newSet.has(id)) {
-          newSet.delete(id);
-      } else {
-          newSet.add(id);
-      }
-      setSelectedIds(newSet);
-  };
+  // toggleSelection and toggleSelectAll are now provided by useSelection hook
 
-  const toggleSelectAll = () => {
-      if (selectedIds.size === debtStudents.length && debtStudents.length > 0) {
-          setSelectedIds(new Set());
-      } else {
-          const allIds = new Set(debtStudents.map(s => s.id));
-          setSelectedIds(allIds);
-      }
+  const handleToggleSelectAll = () => {
+    toggleSelectAll(debtStudents.map(s => s.id));
   };
 
   const openBatchModal = (channel: BatchChannel) => {
@@ -147,6 +135,18 @@ export const BillingView: React.FC<BillingViewProps> = ({ students }) => {
       if (relevantHistory.length > 0) {
           details = "\n\n*Extrato Recente:*\n";
           relevantHistory.forEach(h => {
+              const date = new Date(h.date).toLocaleDateString('pt-BR');
+              const itemNames = h.items ? h.items.map(i => i.name).join(', ') : h.description;
+              const displayItems = itemNames.length > 30 ? itemNames.substring(0, 27) + '...' : itemNames;
+              details += `- ${date}: ${displayItems} (R$ ${h.value.toFixed(2)})\n`;
+          });
+          if (!appliedFilter.start && !appliedFilter.end && student.history.length > 5) {
+              details += "...ver mais no balcão.\n";
+          }
+      }
+
+      return { amount, details };
+  };
               const date = new Date(h.date).toLocaleDateString('pt-BR');
               const itemNames = h.items ? h.items.map(i => i.name).join(', ') : h.description;
               const displayItems = itemNames.length > 30 ? itemNames.substring(0, 27) + '...' : itemNames;
@@ -243,7 +243,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ students }) => {
                             type="checkbox" 
                             className="w-4 h-4 rounded text-red-600 focus:ring-red-500 border-gray-300 cursor-pointer"
                             checked={debtStudents.length > 0 && selectedIds.size === debtStudents.length}
-                            onChange={toggleSelectAll}
+                            onChange={handleToggleSelectAll}
                         />
                     </th>
                     <th className="p-4">Aluno / Funcionário</th>
@@ -292,7 +292,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ students }) => {
                                     {lastPurchase ? new Date(lastPurchase).toLocaleDateString('pt-BR') : '-'}
                                 </td>
                                 <td className="p-4 text-right font-black text-red-600">
-                                    R$ {Math.abs(student.balance).toFixed(2)}
+                                    {formatCurrency(Math.abs(student.balance))}
                                 </td>
                                 <td className="p-4 text-center">
                                      <a 
@@ -383,7 +383,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ students }) => {
                                       <div>
                                           <p className="font-bold text-gray-800">{student.name}</p>
                                           <p className="text-xs text-gray-500">
-                                              Resp: {student.guardianName || '?'} • Dívida: <span className="text-red-500 font-bold">R$ {Math.abs(student.balance).toFixed(2)}</span>
+                                              Resp: {student.guardianName || '?'} • Dívida: <span className="text-red-500 font-bold">{formatCurrency(Math.abs(student.balance))}</span>
                                           </p>
                                       </div>
                                   </div>

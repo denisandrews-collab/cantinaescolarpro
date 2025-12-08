@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Product, Student } from '../types';
+import { filterStudents } from '../utils';
 
 interface ExchangeViewProps {
   products: Product[];
@@ -37,12 +38,8 @@ export const ExchangeView: React.FC<ExchangeViewProps> = ({ products, students, 
   }, [products, searchOut]);
 
   const filteredStudents = useMemo(() => {
-      if(!searchStudent) return [];
-      const q = searchStudent.toLowerCase();
-      return students.filter(s => 
-          (s.isActive !== false) &&
-          (s.name.toLowerCase().includes(q) || s.code?.toLowerCase().includes(q))
-      );
+      if (!searchStudent) return [];
+      return filterStudents(students, searchStudent);
   }, [students, searchStudent]);
 
   // Calculations

@@ -4,6 +4,7 @@ import { CategoryIcons } from '../constants';
 import { Receipt } from './Receipt';
 import { generateReceiptMessage } from '../services/geminiService';
 import { createPixCharge, PixChargeResponse } from '../services/itauService';
+import { filterStudents } from '../utils';
 
 interface PosViewProps {
   products: Product[];
@@ -72,9 +73,7 @@ export const PosView: React.FC<PosViewProps> = ({
   }, [selectedCategory, searchQuery, products]);
 
   const filteredStudents = useMemo(() => {
-      if (!studentSearchQuery) return students.filter(s => s.isActive !== false); 
-      const q = studentSearchQuery.toLowerCase();
-      return students.filter(s => (s.isActive !== false) && (s.name.toLowerCase().includes(q) || s.grade.toLowerCase().includes(q) || s.code?.toLowerCase().includes(q)));
+      return filterStudents(students, studentSearchQuery);
   }, [students, studentSearchQuery]);
 
   // OVERDUE LOGIC
