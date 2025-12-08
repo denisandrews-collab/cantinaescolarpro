@@ -22,32 +22,37 @@ export const ExchangeView: React.FC<ExchangeViewProps> = ({ products, students, 
   // Filter Logic
   const filteredProductsIn = useMemo(() => {
     if(!searchIn) return [];
-    const q = searchIn.toLowerCase();
-    return products.filter(p => p.name.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q));
+    const lowerCaseQuery = searchIn.toLowerCase();
+    return products.filter(product => 
+        product.name.toLowerCase().includes(lowerCaseQuery) || 
+        product.code?.toLowerCase().includes(lowerCaseQuery)
+    );
   }, [products, searchIn]);
 
   const filteredProductsOut = useMemo(() => {
     if(!searchOut) return [];
-    const q = searchOut.toLowerCase();
+    const lowerCaseQuery = searchOut.toLowerCase();
     // Only show active products for outgoing
-    return products.filter(p => 
-        (p.isActive !== false) && 
-        (p.name.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q))
+    return products.filter(product => 
+        (product.isActive !== false) && 
+        (product.name.toLowerCase().includes(lowerCaseQuery) || 
+         product.code?.toLowerCase().includes(lowerCaseQuery))
     );
   }, [products, searchOut]);
 
   const filteredStudents = useMemo(() => {
       if(!searchStudent) return [];
-      const q = searchStudent.toLowerCase();
-      return students.filter(s => 
-          (s.isActive !== false) &&
-          (s.name.toLowerCase().includes(q) || s.code?.toLowerCase().includes(q))
+      const lowerCaseQuery = searchStudent.toLowerCase();
+      return students.filter(student => 
+          (student.isActive !== false) &&
+          (student.name.toLowerCase().includes(lowerCaseQuery) || 
+           student.code?.toLowerCase().includes(lowerCaseQuery))
       );
   }, [students, searchStudent]);
 
   // Calculations
-  const totalIn = productsIn.reduce((sum, p) => sum + p.price, 0);
-  const totalOut = productsOut.reduce((sum, p) => sum + p.price, 0);
+  const totalIn = productsIn.reduce((sum, product) => sum + product.price, 0);
+  const totalOut = productsOut.reduce((sum, product) => sum + product.price, 0);
   const priceDiff = totalOut - totalIn;
 
   // Handlers Incoming
