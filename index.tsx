@@ -23,17 +23,31 @@ function ErrorOverlay({ error }: { error: any }) {
   );
 }
 
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: any }> {
-  constructor(props: any) {
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  error: any;
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  declare state: ErrorBoundaryState;
+  declare props: ErrorBoundaryProps;
+  
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { error: null };
   }
-  static getDerivedStateFromError(error: any) {
+  
+  static getDerivedStateFromError(error: any): ErrorBoundaryState {
     return { error };
   }
+  
   componentDidCatch(error: any, info: any) {
     console.error("ErrorBoundary caught:", error, info);
   }
+  
   render() {
     if (this.state.error) return <ErrorOverlay error={this.state.error} />;
     return this.props.children;
