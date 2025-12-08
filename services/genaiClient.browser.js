@@ -30,7 +30,7 @@ export const generateReceiptMessage = async (studentName, items) => {
     return 'Obrigado pela preferência! Volte sempre.';
   }
   
-  // Simple logic for friendly messages based on item count
+  // Simple logic for friendly messages based on item count and student name
   const messages = [
     'Obrigado pela preferência! Bom apetite.',
     'Tenha um excelente dia de estudos!',
@@ -39,7 +39,8 @@ export const generateReceiptMessage = async (studentName, items) => {
     'Ótima escolha! Volte sempre.'
   ];
   
-  // Use item count to pick a message (pseudo-random but deterministic)
-  const index = itemCount % messages.length;
+  // Create a simple hash from student name for better variety
+  const nameHash = studentName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const index = (itemCount + nameHash) % messages.length;
   return messages[index];
 };
