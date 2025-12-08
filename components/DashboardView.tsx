@@ -1,6 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { Product, Transaction, Student } from '../types';
+import { formatCurrency } from '../utils';
 
 interface DashboardViewProps {
   products: Product[];
@@ -100,7 +101,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ products, transact
             </div>
             <div>
                 <p className="text-sm font-medium text-gray-500 uppercase">Vendas Hoje</p>
-                <h3 className="text-3xl font-black text-gray-900">R$ {salesToday.toFixed(2)}</h3>
+                <h3 className="text-3xl font-black text-gray-900">{formatCurrency(salesToday)}</h3>
             </div>
         </div>
 
@@ -122,7 +123,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ products, transact
             </div>
             <div>
                 <p className="text-sm font-medium text-gray-500 uppercase">Ticket Médio</p>
-                <h3 className="text-3xl font-black text-gray-900">R$ {avgTicket.toFixed(2)}</h3>
+                <h3 className="text-3xl font-black text-gray-900">{formatCurrency(avgTicket)}</h3>
             </div>
         </div>
       </div>
@@ -139,7 +140,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ products, transact
                         <div key={index} className="flex-1 flex flex-col items-center group relative h-full justify-end">
                             {/* Tooltip */}
                             <div className="absolute -top-10 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
-                                R$ {d.value.toFixed(2)}
+                                {formatCurrency(d.value)}
                             </div>
                             
                             {/* Bar */}

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Student, SystemUser, UserRole, AppModule } from '../types';
+import { generateRandomPassword } from '../utils';
 
 interface AccessManagementViewProps {
   students: Student[];
@@ -66,7 +67,7 @@ export const AccessManagementView: React.FC<AccessManagementViewProps> = ({
   };
 
   const handleGenerateRandom = () => {
-      const randomPass = Math.random().toString(36).slice(-6).toUpperCase();
+      const randomPass = generateRandomPassword();
       setManualPassword(randomPass);
   };
 

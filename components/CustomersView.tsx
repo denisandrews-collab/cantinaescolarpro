@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Student } from '../types';
+import { formatCurrency, generateRandomPassword } from '../utils';
+import { useSelection, useSearch } from '../hooks';
 
 interface CustomersViewProps {
   students: Student[];
@@ -25,11 +27,11 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
   const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
   
   // Search & Filter State
-  const [searchQuery, setSearchQuery] = useState('');
+  const { searchQuery, setSearchQuery } = useSearch();
   const [filterType, setFilterType] = useState<FilterType>('ALL');
 
   // Selection State
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const { selectedIds, toggleSelection, toggleSelectAll, clearSelection, setSelectedIds } = useSelection();
 
   // Payment Modal State
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -90,21 +92,12 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
       return filtered;
   }, [students, searchQuery, filterType]);
 
-  // Handle Selection
-  const toggleSelection = (id: string) => {
-      const newSet = new Set(selectedIds);
-      if (newSet.has(id)) newSet.delete(id);
-      else newSet.add(id);
-      setSelectedIds(newSet);
+  // Handle Selection - now using hook
+  const handleToggleSelectAll = () => {
+    toggleSelectAll(filteredStudents.map(s => s.id));
   };
 
-  const toggleSelectAll = () => {
-      if (selectedIds.size === filteredStudents.length && filteredStudents.length > 0) {
-          setSelectedIds(new Set());
-      } else {
-          setSelectedIds(new Set(filteredStudents.map(s => s.id)));
-      }
-  };
+  // toggleSelectAll is now removed, using handleToggleSelectAll instead
 
   const handleOpenModal = (student?: Student) => {
     if (student) {
@@ -136,9 +129,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
       onUpdateStudent({ ...student, isActive: !student.isActive });
   };
 
-  const generatePassword = () => {
-    return Math.random().toString(36).slice(-6).toUpperCase();
-  };
+  // generatePassword is now replaced by utility function
 
   const triggerWelcomeEmail = (studentName: string, guardianName: string, email: string, pass: string) => {
       // Robusta URL Generation
@@ -175,7 +166,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
       });
     } else {
       // Create new student
-      const newPassword = generatePassword();
+      const newPassword = generateRandomPassword();
       const newStudent: Student = {
         id: Date.now().toString(),
         history: [],
@@ -325,7 +316,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
              balance: parseFloat(parts[7]) || 0,
              points: 0,
              history: [],
-             guardianPassword: generatePassword(), // Generate password for imported students
+             guardianPassword: generateRandomPassword(), // Generate password for imported students
              isStaff: false, // Default to student
              isActive: true
            });
@@ -410,7 +401,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                     type="checkbox" 
                     className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer"
                     checked={filteredStudents.length > 0 && selectedIds.size === filteredStudents.length}
-                    onChange={toggleSelectAll}
+                    onChange={handleToggleSelectAll}
                   />
               </th>
               <th className="p-4 w-16 text-center">Ativo</th>
@@ -489,7 +480,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                                     {student.points || 0} pts
                                 </td>
                                 <td className={`p-4 text-right font-bold ${student.balance < 0 ? 'text-red-500' : 'text-green-600'}`}>
-                                {student.balance.toFixed(2)}
+                                {formatCurrency(student.balance)}
                                 </td>
                                 <td className="p-4 flex justify-center gap-2">
                                     <button 
@@ -556,14 +547,14 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                                                                 <td className="px-4 py-2 text-gray-800">{entry.description}</td>
                                                                 <td className="px-4 py-2 text-right text-gray-500 font-mono text-xs">
                                                                     {entry.balanceAfter !== undefined ? 
-                                                                        (entry.balanceAfter < 0 ? `Deve R$ ${Math.abs(entry.balanceAfter).toFixed(2)}` : `Créd. R$ ${entry.balanceAfter.toFixed(2)}`)
+                                                                        (entry.balanceAfter < 0 ? `Deve ${formatCurrency(Math.abs(entry.balanceAfter))}` : `Créd. ${formatCurrency(entry.balanceAfter)}`)
                                                                         : '-'
                                                                     }
                                                                 </td>
                                                                 <td className={`px-4 py-2 text-right font-bold ${
                                                                     entry.type === 'PAYMENT' || entry.type === 'REFUND' ? 'text-green-600' : 'text-red-500'
                                                                 }`}>
-                                                                    {entry.type === 'PAYMENT' || entry.type === 'REFUND' ? '+' : '-'} R$ {entry.value.toFixed(2)}
+                                                                    {entry.type === 'PAYMENT' || entry.type === 'REFUND' ? '+ ' : '- '}{formatCurrency(entry.value)}
                                                                 </td>
                                                                 <td className="px-4 py-2 text-center">
                                                                     {entry.items && entry.items.length > 0 && (
@@ -598,8 +589,8 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                                                                                         <tr key={idx} className="border-b border-gray-50 last:border-0">
                                                                                             <td className="py-1.5 font-medium text-gray-800">{item.name}</td>
                                                                                             <td className="py-1.5 text-right text-gray-600">{item.quantity}</td>
-                                                                                            <td className="py-1.5 text-right text-gray-600">R$ {item.price.toFixed(2)}</td>
-                                                                                            <td className="py-1.5 text-right font-bold text-gray-800">R$ {(item.price * item.quantity).toFixed(2)}</td>
+                                                                                            <td className="py-1.5 text-right text-gray-600">{formatCurrency(item.price)}</td>
+                                                                                            <td className="py-1.5 text-right font-bold text-gray-800">{formatCurrency(item.price * item.quantity)}</td>
                                                                                         </tr>
                                                                                     ))}
                                                                                 </tbody>
@@ -883,7 +874,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                     <h3 className="text-xl font-bold text-gray-800">Receber Pagamento</h3>
                     <p className="text-sm text-gray-500">Cliente: <span className="font-bold">{paymentStudent.name}</span></p>
                     <p className={`text-sm font-bold mt-1 ${paymentStudent.balance < 0 ? 'text-red-500' : 'text-green-600'}`}>
-                        Saldo Atual: {paymentStudent.balance < 0 ? `Devendo R$ ${Math.abs(paymentStudent.balance).toFixed(2)}` : `Crédito R$ ${paymentStudent.balance.toFixed(2)}`}
+                        Saldo Atual: {paymentStudent.balance < 0 ? `Devendo ${formatCurrency(Math.abs(paymentStudent.balance))}` : `Crédito ${formatCurrency(paymentStudent.balance)}`}
                     </p>
                 </div>
 
