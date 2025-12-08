@@ -3,17 +3,17 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 
 // Simple Error Boundary to catch crashes
-class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: any}> {
-  constructor(props: {children: React.ReactNode}) {
+class ErrorBoundary extends React.Component {
+  constructor(props) {
     super(props);
     this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError(error: any) {
+  static getDerivedStateFromError(error) {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: any, errorInfo: any) {
+  componentDidCatch(error, errorInfo) {
     console.error("Uncaught error:", error, errorInfo);
   }
 
@@ -35,11 +35,11 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
 }
 
 const container = document.getElementById("root");
-const root = createRoot(container!);
+const root = createRoot(container);
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
-        <App />
+      <App />
     </ErrorBoundary>
   </React.StrictMode>
 );
