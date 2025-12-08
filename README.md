@@ -1,20 +1,21 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Cantina Escolar Pro (versão mínima)
 
-# Run and deploy your AI Studio app
+Este PR substitui o conteúdo do repositório por uma versão mínima funcional baseada em Vite + React + TypeScript para facilitar o diagnóstico da tela branca.
 
-This contains everything you need to run your app locally.
+## Como testar localmente
 
-View your app in AI Studio: https://ai.studio/apps/drive/1puSRAkwEwNUraybi5eUdwoX-8Z8xsfjc
+1. `npm install`
+2. `npm run dev`
+3. Abra http://localhost:5173
 
-## Run Locally
+## Observações
 
-**Prerequisites:**  Node.js
+- A dependência "@google/genai" foi removida do bundle de cliente para evitar erros no navegador. Se precisar deste SDK, mova-o para um backend (endpoint API) e chame via fetch.
 
+## Tarefas adicionais (não implementadas automaticamente neste PR)
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+- Se você quiser que eu mova chamadas a APIs do Google para um backend, posso adicionar um exemplo de endpoint.
+
+## Objetivo
+
+Criar branch minimal-app, aplicar as alterações acima (substituir/atualizar arquivos), e abrir um PR contra main.
