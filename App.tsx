@@ -52,23 +52,25 @@ const sanitizeSettings = (data: any): SystemSettings => {
     // Trata valores falsy - retorna configurações padrão
     if (!data) return { ...DEFAULT_SETTINGS };
     
-    // Se for string, tenta fazer parse JSON de forma segura
+    // Se for string, tenta fazer parse JSON de forma segura (apenas uma vez, sem recursão)
     if (typeof data === 'string') {
         try {
             const parsed = JSON.parse(data);
-            // Recursivamente sanitiza o resultado do parse
-            return sanitizeSettings(parsed);
+            // Valida que o resultado do parse é um objeto válido antes de processar
+            // Evita recursão infinita ao não chamar sanitizeSettings recursivamente
+            if (!isValidObject(parsed)) {
+                return { ...DEFAULT_SETTINGS };
+            }
+            // Processa o objeto parseado inline (sem recursão)
+            data = parsed;
         } catch (e) {
-            // Em caso de erro de parse, retorna configurações padrão
+            // Parse falhou, retorna configurações padrão
             return { ...DEFAULT_SETTINGS };
         }
     }
     
-    // Se não for objeto (number, boolean, etc), retorna configurações padrão
-    if (typeof data !== 'object') return { ...DEFAULT_SETTINGS };
-    
-    // Se for array, retorna configurações padrão (não é um objeto válido de configurações)
-    if (Array.isArray(data)) return { ...DEFAULT_SETTINGS };
+    // Consolida validação usando isValidObject
+    if (!isValidObject(data)) return { ...DEFAULT_SETTINGS };
     
     // Deep clone do objeto sanitizado - não muta o original
     return {
