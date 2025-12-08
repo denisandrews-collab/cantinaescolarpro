@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './App';
+import App from '../App';
 
 console.log('DIAG: index.tsx carregou'); // certifique-se de ver isto no console
 
