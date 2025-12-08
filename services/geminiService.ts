@@ -1,18 +1,24 @@
-// Browser-safe stub for GenAI usage.
-// IMPORTANT: This file MUST NOT import @google/genai or any Node-only package.
-// Replace client calls to GenAI with an HTTP call to a server endpoint that performs the GenAI request.
-export async function callGenAI(prompt, options = {}) {
-  console.warn(
-    'callGenAI: running browser stub. Move GenAI calls to a server endpoint and call it from the client.'
-  );
-  return {
-    success: false,
-    message:
-      'GenAI is not available in the browser. Implement a server-side endpoint that uses @google/genai and call it from the client.',
-    prompt,
-    suggestion: 'Create an API route that calls @google/genai with server credentials, then fetch it from the client.'
-  };
-}
+import { GoogleGenAI } from "@google/genai";
+import { CartItem } from "../types";
+
+const API_KEY = process.env.API_KEY || '';
+
+export const generateReceiptMessage = async (studentName: string, items: CartItem[]): Promise<string> => {
+  // Graceful fallback if no API key is present
+  if (!API_KEY) {
+    return "Obrigado pela preferência! Bom apetite.";
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: API_KEY });
+    
+    const itemNames = items.map(i => i.name).join(', ');
+    
+    // Using flash model for speed
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: `Generate a very short, friendly, and encouraging message (max 15 words) in Portuguese for a student named ${studentName} who just bought: ${itemNames}. If the food is healthy, compliment them. If it's a treat, tell them to enjoy it. Do not use quotes.`,
+    });
 
     return response.text || "Tenha um excelente dia de estudos!";
   } catch (error) {
