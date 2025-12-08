@@ -35,11 +35,18 @@ const sanitizeProducts = (data: any[]): Product[] => { if (!Array.isArray(data))
 const sanitizeTransactions = (data: any[]): Transaction[] => { if (!Array.isArray(data)) return []; return data.map(t => ({ ...t, date: new Date(t.date), status: t.status || 'VALID', items: t.items || [] })); };
 const sanitizeSystemUsers = (data: any[]): SystemUser[] => { if (!Array.isArray(data)) return []; return data.map(u => ({ ...u, role: u.role || 'CASHIER' })); };
 /**
+ * Helper para verificar se um valor é um objeto válido (não array, não null)
+ */
+const isValidObject = (value: any): boolean => {
+    return value && typeof value === 'object' && !Array.isArray(value);
+};
+
+/**
  * Sanitiza configurações do sistema de forma segura
- * - Trata valores falsy (undefined, null, '') retornando objeto vazio {}
- * - Faz parse seguro de strings JSON, retornando {} em caso de erro
+ * - Trata valores falsy (undefined, null, '') retornando configurações padrão
+ * - Faz parse seguro de strings JSON, retornando configurações padrão em caso de erro
  * - Retorna deep clone para objetos (não muta entrada)
- * - Converte tipos primitivos (number, boolean) para {}
+ * - Converte tipos primitivos (number, boolean) para configurações padrão
  */
 const sanitizeSettings = (data: any): SystemSettings => {
     // Trata valores falsy - retorna configurações padrão
@@ -69,19 +76,19 @@ const sanitizeSettings = (data: any): SystemSettings => {
         ...data,
         features: {
             ...DEFAULT_SETTINGS.features,
-            ...(data.features && typeof data.features === 'object' && !Array.isArray(data.features) ? data.features : {})
+            ...(isValidObject(data.features) ? data.features : {})
         },
         paymentMethods: {
             ...DEFAULT_SETTINGS.paymentMethods,
-            ...(data.paymentMethods && typeof data.paymentMethods === 'object' && !Array.isArray(data.paymentMethods) ? data.paymentMethods : {})
+            ...(isValidObject(data.paymentMethods) ? data.paymentMethods : {})
         },
         kitchenPrinter: {
             ...DEFAULT_SETTINGS.kitchenPrinter,
-            ...(data.kitchenPrinter && typeof data.kitchenPrinter === 'object' && !Array.isArray(data.kitchenPrinter) ? data.kitchenPrinter : {})
+            ...(isValidObject(data.kitchenPrinter) ? data.kitchenPrinter : {})
         },
         counterPrinter: {
             ...DEFAULT_SETTINGS.counterPrinter,
-            ...(data.counterPrinter && typeof data.counterPrinter === 'object' && !Array.isArray(data.counterPrinter) ? data.counterPrinter : {})
+            ...(isValidObject(data.counterPrinter) ? data.counterPrinter : {})
         }
     };
 };
