@@ -1,24 +1,400 @@
-import { GoogleGenAI } from "@google/genai";
-import { CartItem } from "../types";
+import React, { useState, useEffect } from 'react';
+import { Product, Student, Transaction, SystemSettings, StudentHistoryEntry, SystemUser, Company, AppModule, CashEntry } from './types';
+import { PRODUCTS, STUDENTS, SYSTEM_USERS } from './constants';
+import { PosView } from './components/PosView';
+import { CustomersView } from './components/CustomersView';
+import { ProductsView } from './components/ProductsView';
+import { ReportsView } from './components/ReportsView';
+import { ApiSettingsView } from './components/ApiSettingsView';
+import { SettingsView } from './components/SettingsView';
+import { BillingView } from './components/BillingView';
+import { AccessManagementView } from './components/AccessManagementView';
+import { GuardianPortalView } from './components/GuardianPortalView';
+import { DashboardView } from './components/DashboardView';
+import { ExchangeView } from './components/ExchangeView';
+import { SystemLoginView } from './components/SystemLoginView';
+import { SuperAdminView } from './components/SuperAdminView';
 
-const API_KEY = process.env.API_KEY || '';
+type Tab = 'DASHBOARD' | 'POS' | 'CLIENTS' | 'BILLING' | 'PRODUCTS' | 'REPORTS' | 'EXCHANGE' | 'ACCESS' | 'APIS' | 'SETTINGS';
 
-export const generateReceiptMessage = async (studentName: string, items: CartItem[]): Promise<string> => {
-  // Graceful fallback if no API key is present
-  if (!API_KEY) {
-    return "Obrigado pela preferência! Bom apetite.";
-  }
+// === CONFIGURAÇÕES PADRÃO (Mapeando suas impressoras) ===
+const DEFAULT_SETTINGS: SystemSettings = {
+    schoolName: 'Cantina Escolar',
+    taxRate: 0,
+    kitchenPrinter: {
+        name: 'Cozinha Principal 2',
+        ip: '192.168.6.4',
+        port: '9100',
+        enabled: true
+    },
+    counterPrinter: {
+        name: 'Pre-Venda Cantina',
+        ip: '192.168.6.5',
+        port: '9100',
+        enabled: true
+    },
+    printCustomerCopy: true,
+    printKitchenCopy: true,
+    paymentMethods: { money: true, creditCard: false, debitCard: false, pix: false, studentAccount: true },
+    features: { allowNegativeBalance: true, enforceStockLimit: false, showStockAlerts: true, enableLoyaltySystem: true, blockOverdueStudents: false, maxOverdueDays: 30 }
+};
 
-  try {
-    const ai = new GoogleGenAI({ apiKey: API_KEY });
-    
-    const itemNames = items.map(i => i.name).join(', ');
-    
-    // Using flash model for speed
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: `Generate a very short, friendly, and encouraging message (max 15 words) in Portuguese for a student named ${studentName} who just bought: ${itemNames}. If the food is healthy, compliment them. If it's a treat, tell them to enjoy it. Do not use quotes.`,
+// === FUNÇÕES DE SANITIZAÇÃO (Proteção de Dados) ===
+const sanitizeStudents = (data: any[]): Student[] => {
+    if (!Array.isArray(data)) return [];
+    return data.map(s => ({
+        ...s,
+        id: s.id || Date.now().toString(),
+        name: s.name || 'Sem Nome',
+        history: Array.isArray(s.history) ? s.history.map((h: any) => ({ ...h, date: new Date(h.date), items: h.items || [] })) : [],
+        balance: typeof s.balance === 'number' ? s.balance : 0,
+        points: typeof s.points === 'number' ? s.points : 0,
+        isActive: s.isActive ?? true
+    }));
+};
+
+const sanitizeProducts = (data: any[]): Product[] => {
+    if (!Array.isArray(data)) return [];
+    return data.map(p => ({
+        ...p,
+        stock: typeof p.stock === 'number' ? p.stock : 0,
+        costPrice: typeof p.costPrice === 'number' ? p.costPrice : 0,
+        isActive: p.isActive ?? true,
+        isFavorite: p.isFavorite ?? false
+    }));
+};
+
+const sanitizeTransactions = (data: any[]): Transaction[] => {
+    if (!Array.isArray(data)) return [];
+    return data.map(t => ({
+        ...t,
+        date: new Date(t.date),
+        status: t.status || 'VALID',
+        items: t.items || []
+    }));
+};
+
+const sanitizeSystemUsers = (data: any[]): SystemUser[] => {
+    if (!Array.isArray(data)) return [];
+    return data.map(u => ({ ...u, role: u.role || 'CASHIER' }));
+};
+
+const sanitizeSettings = (data: any): SystemSettings => {
+    if (!data || typeof data !== 'object') return DEFAULT_SETTINGS;
+    return {
+        ...DEFAULT_SETTINGS,
+        ...data,
+        kitchenPrinter: { ...DEFAULT_SETTINGS.kitchenPrinter, ...(data.kitchenPrinter || {}) },
+        counterPrinter: { ...DEFAULT_SETTINGS.counterPrinter, ...(data.counterPrinter || {}) }
+    };
+};
+
+const sanitizeCashEntries = (data: any[]): CashEntry[] => {
+    if (!Array.isArray(data)) return [];
+    return data.map(c => ({ ...c, date: new Date(c.date) }));
+};
+
+const sanitizeCompanies = (data: any[]): Company[] => {
+    if (!Array.isArray(data)) return [];
+    return data.map(c => ({ ...c, modules: Array.isArray(c.modules) ? c.modules : ['POS', 'FINANCIAL', 'INVENTORY', 'REPORTS'] }));
+};
+
+// Carrega dados específicos de uma empresa
+const loadScopedState = <T,>(companyId: string, key: string, fallback: T, sanitizer?: (data: any) => T): T => {
+    const scopedKey = `${companyId}_${key}`;
+    const saved = localStorage.getItem(scopedKey);
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            return sanitizer ? sanitizer(parsed) : parsed;
+        } catch (e) {
+            console.error(`Erro ao ler ${scopedKey}`, e);
+            return fallback;
+        }
+    }
+    return fallback;
+};
+
+// Componente de Botão do Menu
+const NavButton: React.FC<{ active: boolean; onClick: () => void; icon: React.ReactNode; label: string }> = ({ active, onClick, icon, label }) => (
+    <button
+        onClick={onClick}
+        className={`w-full p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${active ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/30' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}
+    >
+        {icon}
+        <span className="text-[10px] font-bold text-center leading-tight">{label}</span>
+    </button>
+);
+
+// === APLICAÇÃO DA EMPRESA (TENANT) ===
+// Definido FORA do App principal para não recarregar a cada renderização
+const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company, onExit }) => {
+    // Session State
+    const [currentUser, setCurrentUser] = useState<SystemUser | null>(() => {
+        const saved = localStorage.getItem(`${company.id}_active_session`);
+        return saved ? JSON.parse(saved) : null;
     });
+
+    const [viewMode, setViewMode] = useState<'ADMIN' | 'GUARDIAN' | 'LOGIN'>(currentUser ? 'ADMIN' : 'LOGIN');
+    const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
+    const [triggerNewStudent, setTriggerNewStudent] = useState(false);
+
+    // --- DATA STATES ---
+    const [products, setProducts] = useState<Product[]>(() => loadScopedState(company.id, 'products', PRODUCTS, sanitizeProducts));
+    const [students, setStudents] = useState<Student[]>(() => loadScopedState(company.id, 'students', STUDENTS, sanitizeStudents));
+    const [transactions, setTransactions] = useState<Transaction[]>(() => loadScopedState(company.id, 'transactions', [], sanitizeTransactions));
+    const [systemUsers, setSystemUsers] = useState<SystemUser[]>(() => loadScopedState(company.id, 'systemUsers', SYSTEM_USERS, sanitizeSystemUsers));
+    const [settings, setSettings] = useState<SystemSettings>(() => loadScopedState(company.id, 'settings', DEFAULT_SETTINGS, sanitizeSettings));
+    const [cashEntries, setCashEntries] = useState<CashEntry[]>(() => loadScopedState(company.id, 'cashEntries', [], sanitizeCashEntries));
+
+    // --- PERSISTENCE (Salvar dados sempre que mudarem) ---
+    useEffect(() => { localStorage.setItem(`${company.id}_products`, JSON.stringify(products)); }, [products, company.id]);
+    useEffect(() => { localStorage.setItem(`${company.id}_students`, JSON.stringify(students)); }, [students, company.id]);
+    useEffect(() => { localStorage.setItem(`${company.id}_transactions`, JSON.stringify(transactions)); }, [transactions, company.id]);
+    useEffect(() => { localStorage.setItem(`${company.id}_settings`, JSON.stringify(settings)); }, [settings, company.id]);
+    useEffect(() => { localStorage.setItem(`${company.id}_systemUsers`, JSON.stringify(systemUsers)); }, [systemUsers, company.id]);
+    useEffect(() => { localStorage.setItem(`${company.id}_cashEntries`, JSON.stringify(cashEntries)); }, [cashEntries, company.id]);
+
+    // Save Session
+    useEffect(() => {
+        if (currentUser) localStorage.setItem(`${company.id}_active_session`, JSON.stringify(currentUser));
+        else localStorage.removeItem(`${company.id}_active_session`);
+    }, [currentUser, company.id]);
+
+    // Portal Hash Check
+    useEffect(() => {
+        const checkHash = () => {
+            if (window.location.href.includes('portal') || window.location.hash.includes('portal')) {
+                if (company.modules.includes('PARENTS_PORTAL')) {
+                    setViewMode('GUARDIAN');
+                }
+            }
+        };
+        checkHash();
+        window.addEventListener('hashchange', checkHash);
+        return () => window.removeEventListener('hashchange', checkHash);
+    }, [company.modules]);
+
+    // Handlers
+    const handleLoginSuccess = (user: SystemUser) => { setCurrentUser(user); setViewMode('ADMIN'); };
+
+    const handleImportData = (file: File) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const json = JSON.parse(e.target?.result as string);
+
+                // IMPORTANTE: Atualiza o localStorage DIRETAMENTE para garantir persistência
+                if (json.products) localStorage.setItem(`${company.id}_products`, JSON.stringify(sanitizeProducts(json.products)));
+                if (json.students) localStorage.setItem(`${company.id}_students`, JSON.stringify(sanitizeStudents(json.students)));
+                if (json.transactions) localStorage.setItem(`${company.id}_transactions`, JSON.stringify(sanitizeTransactions(json.transactions)));
+                if (json.settings) localStorage.setItem(`${company.id}_settings`, JSON.stringify(sanitizeSettings(json.settings)));
+                if (json.systemUsers) localStorage.setItem(`${company.id}_systemUsers`, JSON.stringify(sanitizeSystemUsers(json.systemUsers)));
+                if (json.cashEntries) localStorage.setItem(`${company.id}_cashEntries`, JSON.stringify(sanitizeCashEntries(json.cashEntries)));
+
+                alert('Backup restaurado com sucesso! O sistema será reiniciado.');
+                window.location.reload();
+            } catch (err) { alert('Erro ao ler arquivo de backup.'); }
+        };
+        reader.readAsText(file);
+    };
+
+    const handleExportData = () => {
+        const data = { version: '2.1', companyId: company.id, date: new Date(), products, students, transactions, settings, systemUsers, cashEntries };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `Backup_${company.name}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // Transaction Logic
+    const handleTransactionComplete = (t: Transaction) => {
+        const newTx = { ...t, userId: currentUser?.id, userName: currentUser?.name, status: 'VALID' as const };
+        setTransactions(prev => [...prev, newTx]);
+        setProducts(prev => prev.map(p => {
+            const item = t.items.find(i => i.id === p.id);
+            return item && p.stock !== undefined ? { ...p, stock: Math.max(0, p.stock - item.quantity) } : p;
+        }));
+        if (t.studentId) {
+            setStudents(prev => prev.map(s => s.id === t.studentId ? {
+                ...s,
+                balance: s.balance - t.total,
+                points: (s.points || 0) + Math.floor(t.total),
+                history: [{ id: t.id, date: t.date, type: 'PURCHASE', description: `Compra (${t.items.length} itens)`, value: t.total, items: t.items, balanceAfter: s.balance - t.total }, ...(s.history || [])]
+            } : s));
+        }
+    };
+
+    // CRUD Wrappers
+    const updateStudent = (s: Student) => setStudents(prev => prev.map(old => old.id === s.id ? s : old));
+    const addStudent = (s: Student) => setStudents(prev => [...prev, s]);
+    const deleteStudent = (id: string) => setStudents(prev => prev.filter(s => s.id !== id));
+
+    // Render Views
+    if (viewMode === 'GUARDIAN') return <GuardianPortalView students={students} onExitPortal={() => { setViewMode('LOGIN'); window.location.hash = ''; }} onUpdateStudent={updateStudent} />;
+    if (viewMode === 'LOGIN') return <SystemLoginView users={systemUsers} onLogin={handleLoginSuccess} schoolName={settings.schoolName} onGoToPortal={() => company.modules.includes('PARENTS_PORTAL')} />;
+
+    const hasModule = (mod: AppModule) => company.modules.includes(mod);
+
+    return (
+        <div className="flex h-screen bg-gray-100 text-gray-900 font-sans">
+            <aside className="w-20 bg-gray-900 flex flex-col items-center py-6 shrink-0 z-20 print:hidden">
+                <button onClick={onExit} className="mb-4 p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white" title="Sair da Empresa">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+                </button>
+                <nav className="flex flex-col gap-4 w-full px-2 flex-1 overflow-y-auto custom-scrollbar">
+                    <NavButton active={activeTab === 'DASHBOARD'} onClick={() => setActiveTab('DASHBOARD')} icon={<svg />} label="Dashboard" />
+                    {hasModule('POS') && <NavButton active={activeTab === 'POS'} onClick={() => setActiveTab('POS')} icon={<svg />} label="POS" />}
+                    {hasModule('FINANCIAL') && <NavButton active={activeTab === 'CLIENTS'} onClick={() => setActiveTab('CLIENTS')} icon={<svg />} label="Clientes" />}
+                    {hasModule('FINANCIAL') && <NavButton active={activeTab === 'BILLING'} onClick={() => setActiveTab('BILLING')} icon={<svg />} label="Cobrança" />}
+                    {hasModule('INVENTORY') && <NavButton active={activeTab === 'PRODUCTS'} onClick={() => setActiveTab('PRODUCTS')} icon={<svg />} label="Produtos" />}
+                    {hasModule('INVENTORY') && <NavButton active={activeTab === 'EXCHANGE'} onClick={() => setActiveTab('EXCHANGE')} icon={<svg />} label="Trocas" />}
+                    {hasModule('REPORTS') && <NavButton active={activeTab === 'REPORTS'} onClick={() => setActiveTab('REPORTS')} icon={<svg />} label="Relatórios" />}
+                    <div className="h-px bg-gray-700 w-full my-2"></div>
+                    <NavButton active={activeTab === 'ACCESS'} onClick={() => setActiveTab('ACCESS')} icon={<svg />} label="Acesso" />
+                    {hasModule('API_INTEGRATION') && <NavButton active={activeTab === 'APIS'} onClick={() => setActiveTab('APIS')} icon={<svg />} label="APIs" />}
+                    <NavButton active={activeTab === 'SETTINGS'} onClick={() => setActiveTab('SETTINGS')} icon={<svg />} label="Configurações" />
+                </nav>
+                {hasModule('PARENTS_PORTAL') && (
+                    <div className="px-2 w-full mt-4">
+                        <button onClick={() => { setViewMode('GUARDIAN'); window.location.hash = '#/portal'; }} className="w-full p-2 rounded-lg text-blue-300 hover:text-white hover:bg-gray-800">
+                            Acesso Responsáveis
+                        </button>
+                    </div>
+                )}
+            </aside>
+
+            <main className="flex-1 h-full overflow-hidden relative print:w-full print:h-auto print:overflow-visible">
+                {activeTab === 'DASHBOARD' && <DashboardView products={products} transactions={transactions} students={students} />}
+                {activeTab === 'POS' && <PosView products={products} students={students} settings={settings} onTransactionComplete={handleTransactionComplete} onRequestQuickRegister={() => { setActiveTab('CLIENTS'); setTriggerNewStudent(true); }} />}
+                {activeTab === 'CLIENTS' && <CustomersView students={students} onAddStudent={addStudent} onUpdateStudent={updateStudent} onDeleteStudent={deleteStudent} onReceivePayment={(id, amt) => {
+                    setStudents(prev => prev.map(s => s.id === id ? { ...s, balance: s.balance - amt } : s));
+                }} />}
+                {activeTab === 'BILLING' && <BillingView students={students} />}
+                {activeTab === 'PRODUCTS' && <ProductsView products={products} onAddProduct={(p) => setProducts(prev => [...prev, p])} onUpdateProduct={(p) => setProducts(prev => prev.map(old => old.id === p.id ? p : old))} />}
+                {activeTab === 'REPORTS' && <ReportsView transactions={transactions} students={students} onCancelTransaction={(id) => { setTransactions(prev => prev.filter(t => t.id !== id)); }} />}
+                {activeTab === 'EXCHANGE' && <ExchangeView products={products} students={students} onConfirmExchange={() => { /* implementar se necessário */ }} />}
+                {activeTab === 'ACCESS' && <AccessManagementView students={students} onUpdateStudent={updateStudent} systemUsers={systemUsers} onAddSystemUser={(u) => setSystemUsers(prev => [...prev, u])} />}
+                {activeTab === 'APIS' && <ApiSettingsView onSyncProducts={(p) => setProducts(prev => [...prev, ...p])} onSyncStudents={(s) => setStudents(prev => [...prev, ...s])} />}
+                {activeTab === 'SETTINGS' && <SettingsView settings={settings} onUpdateSettings={setSettings} onExportData={handleExportData} onImportData={handleImportData} />}
+            </main>
+        </div>
+    );
+};
+
+// === ROOT APP ===
+const App = () => {
+    // Estado Global das Empresas (Super Admin)
+    const [companies, setCompanies] = useState<Company[]>(() => {
+        const saved = localStorage.getItem('companies');
+        return saved ? sanitizeCompanies(JSON.parse(saved)) : [];
+    });
+
+    const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(() => {
+        return localStorage.getItem('last_selected_company');
+    });
+
+    // Portal global check
+    const [isPortalMode, setIsPortalMode] = useState(false);
+
+    // Persist Companies Immediately on Create/Update
+    const handleSaveCompany = (company: Company) => {
+        setCompanies(prev => {
+            const index = prev.findIndex(c => c.id === company.id);
+            let updatedCompanies;
+            if (index >= 0) { updatedCompanies = [...prev]; updatedCompanies[index] = company; }
+            else { updatedCompanies = [...prev, company]; }
+            localStorage.setItem('companies', JSON.stringify(updatedCompanies)); // Direct Save
+            return updatedCompanies;
+        });
+    };
+
+    // Persist Companies Immediately on Delete
+    const handleDeleteCompany = (id: string) => {
+        setCompanies(prev => {
+            const updatedCompanies = prev.filter(c => c.id !== id);
+            localStorage.setItem('companies', JSON.stringify(updatedCompanies)); // Direct Save
+            return updatedCompanies;
+        });
+    };
+
+    // Persist Selection
+    useEffect(() => {
+        if (selectedCompanyId) localStorage.setItem('last_selected_company', selectedCompanyId);
+        else localStorage.removeItem('last_selected_company');
+    }, [selectedCompanyId]);
+
+    // Hash check for Portal
+    useEffect(() => {
+        const checkHash = () => {
+            const fullUrl = window.location.href.toLowerCase();
+            const decodedUrl = decodeURIComponent(fullUrl);
+            let doubleDecoded = decodedUrl;
+            try { doubleDecoded = decodeURIComponent(decodedUrl); } catch (e) { /* ignore */ }
+
+            if (fullUrl.includes('portal') || decodedUrl.includes('portal') || doubleDecoded.includes('portal') || window.location.hash.includes('portal')) {
+                setIsPortalMode(true);
+            } else {
+                setIsPortalMode(false);
+            }
+        };
+        checkHash();
+        window.addEventListener('hashchange', checkHash);
+        window.addEventListener('popstate', checkHash);
+        return () => { window.removeEventListener('hashchange', checkHash); window.removeEventListener('popstate', checkHash); };
+    }, []);
+
+    // Global Portal Logic
+    const [globalStudents, setGlobalStudents] = useState<Student[]>([]);
+
+    useEffect(() => {
+        if (isPortalMode) {
+            const all: Student[] = [];
+            companies.forEach(c => {
+                const s = loadScopedState(c.id, 'students', [], sanitizeStudents);
+                if (c.modules.includes('PARENTS_PORTAL')) s.forEach(stu => all.push({ ...stu, notes: c.id }));
+            });
+            setGlobalStudents(all);
+        }
+    }, [isPortalMode, companies]);
+
+    const handleGlobalUpdateStudent = (updatedStudent: Student) => {
+        let foundCompanyId: string | null = null;
+        for (const company of companies) {
+            const existingStudents = loadScopedState(company.id, 'students', [], sanitizeStudents);
+            if (existingStudents.some(s => s.id === updatedStudent.id)) { foundCompanyId = company.id; break; }
+        }
+        if (foundCompanyId) {
+            const existingStudents = loadScopedState(foundCompanyId, 'students', [], sanitizeStudents);
+            const newStudentsList = existingStudents.map(s => s.id === updatedStudent.id ? updatedStudent : s);
+            localStorage.setItem(`${foundCompanyId}_students`, JSON.stringify(newStudentsList));
+            setGlobalStudents(prev => prev.map(s => s.id === updatedStudent.id ? updatedStudent : s));
+        }
+    };
+
+    if (isPortalMode) {
+        return <GuardianPortalView students={globalStudents} onExitPortal={() => { setIsPortalMode(false); window.location.hash = ''; }} onUpdateStudent={handleGlobalUpdateStudent} />;
+    }
+
+    const currentCompany = selectedCompanyId ? companies.find(c => c.id === selectedCompanyId) : null;
+
+    if (!selectedCompanyId || !currentCompany) {
+        return <SuperAdminView
+            companies={companies}
+            onSaveCompany={handleSaveCompany}
+            onSelectCompany={setSelectedCompanyId}
+            onDeleteCompany={handleDeleteCompany}
+        />;
+    }
+
+    return <TenantApp key={currentCompany.id} company={currentCompany} onExit={() => setSelectedCompanyId(null)} />;
+};
+
+export default App;
+
 
     return response.text || "Tenha um excelente dia de estudos!";
   } catch (error) {
