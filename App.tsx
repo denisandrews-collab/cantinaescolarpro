@@ -30,13 +30,79 @@ const DEFAULT_SETTINGS: SystemSettings = {
 };
 
 // ... (Sanitizers mantidos) ...
-const sanitizeStudents = (data: any[]): Student[] => { if (!Array.isArray(data)) return []; return data.map(s => ({ ...s, id: s.id || Date.now().toString(), name: s.name || 'Sem Nome', history: Array.isArray(s.history) ? s.history.map((h: any) => ({ ...h, date: new Date(h.date), items: h.items || [] })) : [], balance: typeof s.balance === 'number' ? s.balance : 0, points: typeof s.points === 'number' ? s.points : 0, isActive: s.isActive ?? true })); };
-const sanitizeProducts = (data: any[]): Product[] => { if (!Array.isArray(data)) return []; return data.map(p => ({ ...p, stock: typeof p.stock === 'number' ? p.stock : 0, costPrice: typeof p.costPrice === 'number' ? p.costPrice : 0, isActive: p.isActive ?? true, isFavorite: p.isFavorite ?? false })); };
-const sanitizeTransactions = (data: any[]): Transaction[] => { if (!Array.isArray(data)) return []; return data.map(t => ({ ...t, date: new Date(t.date), status: t.status || 'VALID', items: t.items || [] })); };
-const sanitizeSystemUsers = (data: any[]): SystemUser[] => { if (!Array.isArray(data)) return []; return data.map(u => ({ ...u, role: u.role || 'CASHIER' })); };
-const sanitizeSettings = (data: any): SystemSettings => { if (!data || typeof data !== 'object') return DEFAULT_SETTINGS; return { ...DEFAULT_SETTINGS, ...data, features: { ...DEFAULT_SETTINGS.features, ...(data.features || {}) }, paymentMethods: { ...DEFAULT_SETTINGS.paymentMethods, ...(data.paymentMethods || {}) }, kitchenPrinter: { ...DEFAULT_SETTINGS.kitchenPrinter, ...(data.kitchenPrinter || {}) }, counterPrinter: { ...DEFAULT_SETTINGS.counterPrinter, ...(data.counterPrinter || {}) } }; };
-const sanitizeCashEntries = (data: any[]): CashEntry[] => { if (!Array.isArray(data)) return []; return data.map(c => ({ ...c, date: new Date(c.date) })); };
-const sanitizeCompanies = (data: any[]): Company[] => { if (!Array.isArray(data)) return []; return data.map(c => ({ ...c, modules: Array.isArray(c.modules) ? c.modules : ['POS', 'FINANCIAL', 'INVENTORY', 'REPORTS'] })); };
+const ensureValidStudentData = (data: any[]): Student[] => { 
+    if (!Array.isArray(data)) return []; 
+    return data.map(student => ({ 
+        ...student, 
+        id: student.id || Date.now().toString(), 
+        name: student.name || 'Sem Nome', 
+        history: Array.isArray(student.history) ? student.history.map((historyEntry: any) => ({ 
+            ...historyEntry, 
+            date: new Date(historyEntry.date), 
+            items: historyEntry.items || [] 
+        })) : [], 
+        balance: typeof student.balance === 'number' ? student.balance : 0, 
+        points: typeof student.points === 'number' ? student.points : 0, 
+        isActive: student.isActive ?? true 
+    })); 
+};
+
+const ensureValidProductData = (data: any[]): Product[] => { 
+    if (!Array.isArray(data)) return []; 
+    return data.map(product => ({ 
+        ...product, 
+        stock: typeof product.stock === 'number' ? product.stock : 0, 
+        costPrice: typeof product.costPrice === 'number' ? product.costPrice : 0, 
+        isActive: product.isActive ?? true, 
+        isFavorite: product.isFavorite ?? false 
+    })); 
+};
+
+const ensureValidTransactionData = (data: any[]): Transaction[] => { 
+    if (!Array.isArray(data)) return []; 
+    return data.map(transaction => ({ 
+        ...transaction, 
+        date: new Date(transaction.date), 
+        status: transaction.status || 'VALID', 
+        items: transaction.items || [] 
+    })); 
+};
+
+const ensureValidSystemUserData = (data: any[]): SystemUser[] => { 
+    if (!Array.isArray(data)) return []; 
+    return data.map(user => ({ 
+        ...user, 
+        role: user.role || 'CASHIER' 
+    })); 
+};
+
+const ensureValidSettingsData = (data: any): SystemSettings => { 
+    if (!data || typeof data !== 'object') return DEFAULT_SETTINGS; 
+    return { 
+        ...DEFAULT_SETTINGS, 
+        ...data, 
+        features: { ...DEFAULT_SETTINGS.features, ...(data.features || {}) }, 
+        paymentMethods: { ...DEFAULT_SETTINGS.paymentMethods, ...(data.paymentMethods || {}) }, 
+        kitchenPrinter: { ...DEFAULT_SETTINGS.kitchenPrinter, ...(data.kitchenPrinter || {}) }, 
+        counterPrinter: { ...DEFAULT_SETTINGS.counterPrinter, ...(data.counterPrinter || {}) } 
+    }; 
+};
+
+const ensureValidCashEntryData = (data: any[]): CashEntry[] => { 
+    if (!Array.isArray(data)) return []; 
+    return data.map(cashEntry => ({ 
+        ...cashEntry, 
+        date: new Date(cashEntry.date) 
+    })); 
+};
+
+const ensureValidCompanyData = (data: any[]): Company[] => { 
+    if (!Array.isArray(data)) return []; 
+    return data.map(company => ({ 
+        ...company, 
+        modules: Array.isArray(company.modules) ? company.modules : ['POS', 'FINANCIAL', 'INVENTORY', 'REPORTS'] 
+    })); 
+};
 
 const loadScopedState = <T,>(companyId: string, key: string, fallback: T, sanitizer?: (data: any) => T): T => {
     const scopedKey = `${companyId}_${key}`;
@@ -62,12 +128,12 @@ const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company
     const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
     const [triggerNewStudent, setTriggerNewStudent] = useState(false);
 
-    const [products, setProducts] = useState<Product[]>(() => loadScopedState(company.id, 'products', PRODUCTS, sanitizeProducts));
-    const [students, setStudents] = useState<Student[]>(() => loadScopedState(company.id, 'students', STUDENTS, sanitizeStudents));
-    const [transactions, setTransactions] = useState<Transaction[]>(() => loadScopedState(company.id, 'transactions', [], sanitizeTransactions));
-    const [systemUsers, setSystemUsers] = useState<SystemUser[]>(() => loadScopedState(company.id, 'systemUsers', SYSTEM_USERS, sanitizeSystemUsers));
-    const [settings, setSettings] = useState<SystemSettings>(() => loadScopedState(company.id, 'settings', DEFAULT_SETTINGS, sanitizeSettings));
-    const [cashEntries, setCashEntries] = useState<CashEntry[]>(() => loadScopedState(company.id, 'cashEntries', [], sanitizeCashEntries));
+    const [products, setProducts] = useState<Product[]>(() => loadScopedState(company.id, 'products', PRODUCTS, ensureValidProductData));
+    const [students, setStudents] = useState<Student[]>(() => loadScopedState(company.id, 'students', STUDENTS, ensureValidStudentData));
+    const [transactions, setTransactions] = useState<Transaction[]>(() => loadScopedState(company.id, 'transactions', [], ensureValidTransactionData));
+    const [systemUsers, setSystemUsers] = useState<SystemUser[]>(() => loadScopedState(company.id, 'systemUsers', SYSTEM_USERS, ensureValidSystemUserData));
+    const [settings, setSettings] = useState<SystemSettings>(() => loadScopedState(company.id, 'settings', DEFAULT_SETTINGS, ensureValidSettingsData));
+    const [cashEntries, setCashEntries] = useState<CashEntry[]>(() => loadScopedState(company.id, 'cashEntries', [], ensureValidCashEntryData));
 
     useEffect(() => {
         localStorage.setItem(`${company.id}_products`, JSON.stringify(products));
@@ -100,18 +166,18 @@ const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company
 
     const handleImportData = (file: File) => {
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = (event) => {
             try {
-                const json = JSON.parse(e.target?.result as string);
-                if (json.products) localStorage.setItem(`${company.id}_products`, JSON.stringify(sanitizeProducts(json.products)));
-                if (json.students) localStorage.setItem(`${company.id}_students`, JSON.stringify(sanitizeStudents(json.students)));
-                if (json.transactions) localStorage.setItem(`${company.id}_transactions`, JSON.stringify(sanitizeTransactions(json.transactions)));
-                if (json.settings) localStorage.setItem(`${company.id}_settings`, JSON.stringify(sanitizeSettings(json.settings)));
-                if (json.systemUsers) localStorage.setItem(`${company.id}_systemUsers`, JSON.stringify(sanitizeSystemUsers(json.systemUsers)));
-                if (json.cashEntries) localStorage.setItem(`${company.id}_cashEntries`, JSON.stringify(sanitizeCashEntries(json.cashEntries)));
+                const json = JSON.parse(event.target?.result as string);
+                if (json.products) localStorage.setItem(`${company.id}_products`, JSON.stringify(ensureValidProductData(json.products)));
+                if (json.students) localStorage.setItem(`${company.id}_students`, JSON.stringify(ensureValidStudentData(json.students)));
+                if (json.transactions) localStorage.setItem(`${company.id}_transactions`, JSON.stringify(ensureValidTransactionData(json.transactions)));
+                if (json.settings) localStorage.setItem(`${company.id}_settings`, JSON.stringify(ensureValidSettingsData(json.settings)));
+                if (json.systemUsers) localStorage.setItem(`${company.id}_systemUsers`, JSON.stringify(ensureValidSystemUserData(json.systemUsers)));
+                if (json.cashEntries) localStorage.setItem(`${company.id}_cashEntries`, JSON.stringify(ensureValidCashEntryData(json.cashEntries)));
                 alert('Backup restaurado! O sistema será reiniciado.');
                 window.location.reload();
-            } catch (err) { alert('Erro ao ler arquivo de backup.'); }
+            } catch (error) { alert('Erro ao ler arquivo de backup.'); }
         };
         reader.readAsText(file);
     };
@@ -125,26 +191,41 @@ const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company
         document.body.appendChild(link); link.click(); document.body.removeChild(link);
     };
 
-    const handleTransactionComplete = (t: Transaction) => {
-        const newTx = { ...t, userId: currentUser?.id, userName: currentUser?.name, status: 'VALID' as const };
-        setTransactions(prev => [...prev, newTx]);
-        setProducts(prev => prev.map(p => {
-            const item = t.items.find(i => i.id === p.id);
-            return item && p.stock !== undefined ? { ...p, stock: Math.max(0, p.stock - item.quantity) } : p;
+    const handleTransactionComplete = (transaction: Transaction) => {
+        const newTransaction = { ...transaction, userId: currentUser?.id, userName: currentUser?.name, status: 'VALID' as const };
+        setTransactions(previousTransactions => [...previousTransactions, newTransaction]);
+        setProducts(previousProducts => previousProducts.map(product => {
+            const cartItem = transaction.items.find(item => item.id === product.id);
+            return cartItem && product.stock !== undefined ? { ...product, stock: Math.max(0, product.stock - cartItem.quantity) } : product;
         }));
-        if (t.studentId) {
-            setStudents(prev => prev.map(s => s.id === t.studentId ? { ...s, balance: s.balance - t.total, points: (s.points || 0) + Math.floor(t.total), history: [{ id: t.id, date: t.date, type: 'PURCHASE', description: `Compra (${t.items.length} itens)`, value: t.total, items: t.items, balanceAfter: s.balance - t.total }, ...(s.history || [])] } : s));
+        if (transaction.studentId) {
+            setStudents(previousStudents => previousStudents.map(student => 
+                student.id === transaction.studentId ? { 
+                    ...student, 
+                    balance: student.balance - transaction.total, 
+                    points: (student.points || 0) + Math.floor(transaction.total), 
+                    history: [{ 
+                        id: transaction.id, 
+                        date: transaction.date, 
+                        type: 'PURCHASE', 
+                        description: `Compra (${transaction.items.length} itens)`, 
+                        value: transaction.total, 
+                        items: transaction.items, 
+                        balanceAfter: student.balance - transaction.total 
+                    }, ...(student.history || [])] 
+                } : student
+            ));
         }
     };
 
-    const updateStudent = (s: Student) => setStudents(prev => prev.map(old => old.id === s.id ? s : old));
-    const addStudent = (s: Student) => setStudents(prev => [...prev, s]);
-    const deleteStudent = (id: string) => setStudents(prev => prev.filter(s => s.id !== id));
+    const updateStudent = (student: Student) => setStudents(previousStudents => previousStudents.map(existingStudent => existingStudent.id === student.id ? student : existingStudent));
+    const addStudent = (student: Student) => setStudents(previousStudents => [...previousStudents, student]);
+    const deleteStudent = (studentId: string) => setStudents(previousStudents => previousStudents.filter(student => student.id !== studentId));
     
     if (viewMode === 'GUARDIAN') return <GuardianPortalView students={students} onExitPortal={() => { setViewMode('LOGIN'); window.location.hash = ''; }} onUpdateStudent={updateStudent} />;
     if (viewMode === 'LOGIN') return <SystemLoginView users={systemUsers} onLogin={handleLoginSuccess} schoolName={settings.schoolName} onGoToPortal={() => company.modules.includes('PARENTS_PORTAL')} />;
 
-    const hasModule = (mod: AppModule) => company.modules.includes(mod);
+    const hasModule = (module: AppModule) => company.modules.includes(module);
 
     return (
         <div className="flex h-screen bg-gray-100 text-gray-900 font-sans">
@@ -173,50 +254,79 @@ const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company
 
             <main className="flex-1 h-full overflow-hidden relative print:w-full print:h-auto print:overflow-visible">
                 {activeTab === 'DASHBOARD' && <DashboardView products={products} transactions={transactions} students={students} />}
-                {activeTab === 'POS' && <PosView products={products} students={students} settings={settings} onTransactionComplete={handleTransactionComplete} onRequestQuickRegister={() => { setActiveTab('CLIENTS'); setTriggerNewStudent(true); }} cashEntries={cashEntries} onAddCashEntry={(e) => setCashEntries(prev => [...prev, e])} />}
+                {activeTab === 'POS' && <PosView 
+                    products={products} 
+                    students={students} 
+                    settings={settings} 
+                    onTransactionComplete={handleTransactionComplete} 
+                    onRequestQuickRegister={() => { setActiveTab('CLIENTS'); setTriggerNewStudent(true); }} 
+                    cashEntries={cashEntries} 
+                    onAddCashEntry={(entry) => setCashEntries(previousEntries => [...previousEntries, entry])} 
+                />}
                 {activeTab === 'CLIENTS' && <CustomersView 
                     students={students} 
                     onAddStudent={addStudent} 
                     onUpdateStudent={updateStudent} 
                     onDeleteStudent={deleteStudent} 
-                    onReceivePayment={(id, amt, desc) => {
-                        setStudents(prev => prev.map(s => s.id === id ? { 
-                            ...s, 
-                            balance: s.balance + amt,
+                    onReceivePayment={(studentId, amount, description) => {
+                        setStudents(previousStudents => previousStudents.map(student => student.id === studentId ? { 
+                            ...student, 
+                            balance: student.balance + amount,
                             history: [{ 
                                 id: Date.now().toString(),
                                 date: new Date(),
                                 type: 'PAYMENT',
-                                description: desc || 'Pagamento',
-                                value: amt,
-                                balanceAfter: s.balance + amt
-                            }, ...(s.history || [])]
-                        } : s));
+                                description: description || 'Pagamento',
+                                value: amount,
+                                balanceAfter: student.balance + amount
+                            }, ...(student.history || [])]
+                        } : student));
                     }} 
-                    onRefundStudent={(id, amt, reason) => {
-                         setStudents(prev => prev.map(s => s.id === id ? { 
-                            ...s, 
-                            balance: s.balance - amt,
+                    onRefundStudent={(studentId, amount, reason) => {
+                         setStudents(previousStudents => previousStudents.map(student => student.id === studentId ? { 
+                            ...student, 
+                            balance: student.balance - amount,
                             history: [{ 
                                 id: Date.now().toString(),
                                 date: new Date(),
                                 type: 'REFUND',
                                 description: reason || 'Estorno',
-                                value: amt,
-                                balanceAfter: s.balance - amt
-                            }, ...(s.history || [])]
-                        } : s));
+                                value: amount,
+                                balanceAfter: student.balance - amount
+                            }, ...(student.history || [])]
+                        } : student));
                     }}
-                    onImportStudents={(s) => setStudents(prev => [...prev, ...s])}
+                    onImportStudents={(importedStudents) => setStudents(previousStudents => [...previousStudents, ...importedStudents])}
                     initiateNewStudent={triggerNewStudent}
                     onNewStudentInitiated={() => setTriggerNewStudent(false)}
                 />}
                 {activeTab === 'BILLING' && <BillingView students={students} />}
-                {activeTab === 'PRODUCTS' && <ProductsView products={products} onAddProduct={(p) => setProducts(prev => [...prev, p])} onUpdateProduct={(p) => setProducts(prev => prev.map(old => old.id === p.id ? p : old))} onDeleteProduct={(id) => setProducts(prev => prev.filter(p => p.id !== id))} onImportProducts={(p) => setProducts(prev => [...prev, ...p])} onToggleFavorite={(id) => setProducts(p => p.map(prod => prod.id === id ? {...prod, isFavorite: !prod.isFavorite} : prod))} />}
-                {activeTab === 'REPORTS' && <ReportsView transactions={transactions} students={students} onCancelTransaction={(id) => { setTransactions(prev => prev.filter(t => t.id !== id)); }} />}
+                {activeTab === 'PRODUCTS' && <ProductsView 
+                    products={products} 
+                    onAddProduct={(product) => setProducts(previousProducts => [...previousProducts, product])} 
+                    onUpdateProduct={(product) => setProducts(previousProducts => previousProducts.map(existingProduct => existingProduct.id === product.id ? product : existingProduct))} 
+                    onDeleteProduct={(productId) => setProducts(previousProducts => previousProducts.filter(product => product.id !== productId))} 
+                    onImportProducts={(importedProducts) => setProducts(previousProducts => [...previousProducts, ...importedProducts])} 
+                    onToggleFavorite={(productId) => setProducts(previousProducts => previousProducts.map(product => product.id === productId ? {...product, isFavorite: !product.isFavorite} : product))} 
+                />}
+                {activeTab === 'REPORTS' && <ReportsView 
+                    transactions={transactions} 
+                    students={students} 
+                    onCancelTransaction={(transactionId) => { 
+                        setTransactions(previousTransactions => previousTransactions.filter(transaction => transaction.id !== transactionId)); 
+                    }} 
+                />}
                 {activeTab === 'EXCHANGE' && <ExchangeView products={products} students={students} onConfirmExchange={() => { /* implementar se necessário */ }} />}
-                {activeTab === 'ACCESS' && <AccessManagementView students={students} onUpdateStudent={updateStudent} systemUsers={systemUsers} onAddSystemUser={(u) => setSystemUsers(prev => [...prev, u])} />}
-                {activeTab === 'APIS' && <ApiSettingsView onSyncProducts={(p) => setProducts(prev => [...prev, ...p])} onSyncStudents={(s) => setStudents(prev => [...prev, ...s])} />}
+                {activeTab === 'ACCESS' && <AccessManagementView 
+                    students={students} 
+                    onUpdateStudent={updateStudent} 
+                    systemUsers={systemUsers} 
+                    onAddSystemUser={(user) => setSystemUsers(previousUsers => [...previousUsers, user])} 
+                />}
+                {activeTab === 'APIS' && <ApiSettingsView 
+                    onSyncProducts={(syncedProducts) => setProducts(previousProducts => [...previousProducts, ...syncedProducts])} 
+                    onSyncStudents={(syncedStudents) => setStudents(previousStudents => [...previousStudents, ...syncedStudents])} 
+                />}
                 {activeTab === 'SETTINGS' && <SettingsView settings={settings} onUpdateSettings={setSettings} onExportData={handleExportData} onImportData={handleImportData} />}
             </main>
         </div>
@@ -228,7 +338,7 @@ const App = () => {
     // Estado Global das Empresas (Super Admin)
     const [companies, setCompanies] = useState<Company[]>(() => {
         const saved = localStorage.getItem('companies');
-        return saved ? sanitizeCompanies(JSON.parse(saved)) : [];
+        return saved ? ensureValidCompanyData(JSON.parse(saved)) : [];
     });
 
     const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(() => {
@@ -264,26 +374,31 @@ const App = () => {
     const [globalStudents, setGlobalStudents] = useState<Student[]>([]);
     useEffect(() => {
         if (isPortalMode) {
-            const all: Student[] = [];
-            companies.forEach(c => {
-                const s = loadScopedState(c.id, 'students', [], sanitizeStudents);
-                if (c.modules.includes('PARENTS_PORTAL')) s.forEach(stu => all.push({ ...stu, notes: c.id }));
+            const allStudents: Student[] = [];
+            companies.forEach(company => {
+                const companyStudents = loadScopedState(company.id, 'students', [], ensureValidStudentData);
+                if (company.modules.includes('PARENTS_PORTAL')) {
+                    companyStudents.forEach(student => allStudents.push({ ...student, notes: company.id }));
+                }
             });
-            setGlobalStudents(all);
+            setGlobalStudents(allStudents);
         }
     }, [isPortalMode, companies]);
 
     const handleGlobalUpdateStudent = (updatedStudent: Student) => {
         let foundCompanyId: string | null = null;
         for (const company of companies) {
-            const existingStudents = loadScopedState(company.id, 'students', [], sanitizeStudents);
-            if (existingStudents.some(s => s.id === updatedStudent.id)) { foundCompanyId = company.id; break; }
+            const existingStudents = loadScopedState(company.id, 'students', [], ensureValidStudentData);
+            if (existingStudents.some(student => student.id === updatedStudent.id)) { 
+                foundCompanyId = company.id; 
+                break; 
+            }
         }
         if (foundCompanyId) {
-            const existingStudents = loadScopedState(foundCompanyId, 'students', [], sanitizeStudents);
-            const newStudentsList = existingStudents.map(s => s.id === updatedStudent.id ? updatedStudent : s);
+            const existingStudents = loadScopedState(foundCompanyId, 'students', [], ensureValidStudentData);
+            const newStudentsList = existingStudents.map(student => student.id === updatedStudent.id ? updatedStudent : student);
             localStorage.setItem(`${foundCompanyId}_students`, JSON.stringify(newStudentsList));
-            setGlobalStudents(prev => prev.map(s => s.id === updatedStudent.id ? updatedStudent : s));
+            setGlobalStudents(previousStudents => previousStudents.map(student => student.id === updatedStudent.id ? updatedStudent : student));
         }
     };
 
@@ -291,14 +406,28 @@ const App = () => {
         return <GuardianPortalView students={globalStudents} onExitPortal={() => { setIsPortalMode(false); window.location.hash = ''; }} onUpdateStudent={handleGlobalUpdateStudent} />;
     }
 
-    const currentCompany = selectedCompanyId ? companies.find(c => c.id === selectedCompanyId) : null;
+    const currentCompany = selectedCompanyId ? companies.find(company => company.id === selectedCompanyId) : null;
 
     if (!selectedCompanyId || !currentCompany || isSuperAdminMode) {
         return <SuperAdminView
             companies={companies}
-            onSaveCompany={(c) => setCompanies(prev => { const idx = prev.findIndex(x => x.id === c.id); const updated = idx >= 0 ? [...prev] : [...prev, c]; if(idx >= 0) updated[idx] = c; localStorage.setItem('companies', JSON.stringify(updated)); return updated; })}
-            onSelectCompany={(id) => { setSelectedCompanyId(id); setIsSuperAdminMode(false); window.location.hash = ''; }}
-            onDeleteCompany={(id) => setCompanies(prev => { const upd = prev.filter(c => c.id !== id); localStorage.setItem('companies', JSON.stringify(upd)); return upd; })}
+            onSaveCompany={(company) => setCompanies(previousCompanies => { 
+                const companyIndex = previousCompanies.findIndex(existingCompany => existingCompany.id === company.id); 
+                const updatedCompanies = companyIndex >= 0 ? [...previousCompanies] : [...previousCompanies, company]; 
+                if (companyIndex >= 0) updatedCompanies[companyIndex] = company; 
+                localStorage.setItem('companies', JSON.stringify(updatedCompanies)); 
+                return updatedCompanies; 
+            })}
+            onSelectCompany={(companyId) => { 
+                setSelectedCompanyId(companyId); 
+                setIsSuperAdminMode(false); 
+                window.location.hash = ''; 
+            }}
+            onDeleteCompany={(companyId) => setCompanies(previousCompanies => { 
+                const updatedCompanies = previousCompanies.filter(company => company.id !== companyId); 
+                localStorage.setItem('companies', JSON.stringify(updatedCompanies)); 
+                return updatedCompanies; 
+            })}
         />;
     }
 

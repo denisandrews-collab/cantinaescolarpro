@@ -64,26 +64,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ products, transact
     return data;
   }, [transactions]);
 
-  const maxChartValue = Math.max(...chartData.map(d => d.value), 10); 
+  const maxChartValue = Math.max(...chartData.map(dataPoint => dataPoint.value), 10); 
 
   // 5. Top Selling Products Logic
   const topProducts = useMemo(() => {
-      const counts: Record<string, number> = {};
+      const productQuantities: Record<string, number> = {};
       
-      transactions.forEach(t => {
-          if (t.status === 'CANCELLED') return;
-          t.items.forEach(item => {
-              counts[item.id] = (counts[item.id] || 0) + item.quantity;
+      transactions.forEach(transaction => {
+          if (transaction.status === 'CANCELLED') return;
+          transaction.items.forEach(item => {
+              productQuantities[item.id] = (productQuantities[item.id] || 0) + item.quantity;
           });
       });
 
-      return Object.entries(counts)
-          .map(([id, quantity]) => {
-              const product = products.find(p => p.id === id);
+      return Object.entries(productQuantities)
+          .map(([productId, quantity]) => {
+              const product = products.find(product => product.id === productId);
               return product ? { ...product, totalSold: quantity } : null;
           })
           .filter(Boolean)
-          .sort((a, b) => (b?.totalSold || 0) - (a?.totalSold || 0))
+          .sort((productA, productB) => (productB?.totalSold || 0) - (productA?.totalSold || 0))
           .slice(0, 5); // Top 5
   }, [transactions, products]);
 

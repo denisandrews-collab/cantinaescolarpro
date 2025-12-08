@@ -134,9 +134,9 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({ companies, onSav
                       <div className="space-y-2 mb-6">
                           <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Módulos Ativos</p>
                           <div className="flex flex-wrap gap-2">
-                              {company.modules.slice(0, 4).map(mod => (
-                                  <span key={mod} className="bg-gray-700 text-gray-300 text-[10px] px-2 py-1 rounded border border-gray-600">
-                                      {AVAILABLE_MODULES.find(m => m.key === mod)?.label.split(' ')[0]}
+                              {company.modules.slice(0, 4).map(moduleKey => (
+                                  <span key={moduleKey} className="bg-gray-700 text-gray-300 text-[10px] px-2 py-1 rounded border border-gray-600">
+                                      {AVAILABLE_MODULES.find(availableModule => availableModule.key === moduleKey)?.label.split(' ')[0]}
                                   </span>
                               ))}
                               {company.modules.length > 4 && (

@@ -137,7 +137,7 @@ export const GuardianPortalView: React.FC<GuardianPortalViewProps> = ({ students
 
   // --- COMPUTED VALUES ---
   const totalBalance = useMemo(() => {
-      return familyGroup.reduce((acc, s) => acc + s.balance, 0);
+      return familyGroup.reduce((accumulator, student) => accumulator + student.balance, 0);
   }, [familyGroup]);
 
   const guardianName = familyGroup.length > 0 ? (familyGroup[0].guardianName || 'Responsável') : '';
@@ -145,14 +145,14 @@ export const GuardianPortalView: React.FC<GuardianPortalViewProps> = ({ students
   const mergedHistory = useMemo(() => {
       let allHistory: FamilyHistoryEntry[] = [];
       familyGroup.forEach(student => {
-          const studentHistory = (student.history || []).map(h => ({
-              ...h,
+          const studentHistory = (student.history || []).map(historyEntry => ({
+              ...historyEntry,
               studentName: student.name // Tag transaction with student name
           }));
           allHistory = [...allHistory, ...studentHistory];
       });
       // Sort by date descending
-      return allHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      return allHistory.sort((entryA, entryB) => new Date(entryB.date).getTime() - new Date(entryA.date).getTime());
   }, [familyGroup]);
 
 

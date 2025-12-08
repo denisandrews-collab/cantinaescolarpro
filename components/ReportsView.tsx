@@ -117,24 +117,24 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ transactions, students
         if(visibleColumns.items) headers.push('Itens');
         if(visibleColumns.status) headers.push('Status');
 
-        rows = filteredTransactions.map(t => {
+        rows = filteredTransactions.map(transaction => {
             const row = [];
-            if(visibleColumns.id) row.push(t.id);
-            if(visibleColumns.date) row.push(`"${safeDate(t.date).toLocaleString('pt-BR')}"`);
-            if(visibleColumns.student) row.push(`"${t.studentName || 'Balcão'}"`);
-            if(visibleColumns.total) row.push(t.total.toFixed(2));
+            if(visibleColumns.id) row.push(transaction.id);
+            if(visibleColumns.date) row.push(`"${safeDate(transaction.date).toLocaleString('pt-BR')}"`);
+            if(visibleColumns.student) row.push(`"${transaction.studentName || 'Balcão'}"`);
+            if(visibleColumns.total) row.push(transaction.total.toFixed(2));
             if(visibleColumns.items) {
-                const itemsSummary = t.items.map(i => `${i.quantity}x ${i.name}`).join(' | ');
+                const itemsSummary = transaction.items.map(item => `${item.quantity}x ${item.name}`).join(' | ');
                 row.push(`"${itemsSummary}"`);
             }
-            if(visibleColumns.status) row.push(t.status === 'CANCELLED' ? 'CANCELADO' : 'VÁLIDO');
+            if(visibleColumns.status) row.push(transaction.status === 'CANCELLED' ? 'CANCELADO' : 'VÁLIDO');
             return row.join(',');
         }).join("\n");
     } else {
         // Export Student/Staff
         headers = ['Código', 'Nome', 'Turma/Cargo', 'Pedidos (Período)', 'Gasto (Período)', 'Saldo Atual'];
-        rows = studentReports.map(s => {
-            return `"${s.code || ''}","${s.name}","${s.grade}",${s.ordersCount},${s.periodTotal.toFixed(2)},${s.balance.toFixed(2)}`;
+        rows = studentReports.map(student => {
+            return `"${student.code || ''}","${student.name}","${student.grade}",${student.ordersCount},${student.periodTotal.toFixed(2)},${student.balance.toFixed(2)}`;
         }).join("\n");
     }
     

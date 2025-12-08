@@ -125,7 +125,9 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
   // Import/Export Logic
   const handleExportCSV = () => {
     const headers = "ID,Código,Nome,Preço Venda,Preço Custo,Estoque,Categoria,Imagem,Ativo\n";
-    const rows = products.map(p => `${p.id},"${p.code || ''}","${p.name}",${p.price},${p.costPrice || 0},${p.stock || 0},"${p.category}","${p.image || ''}",${p.isActive ? 'SIM' : 'NÃO'}`).join("\n");
+    const rows = products.map(product => 
+        `${product.id},"${product.code || ''}","${product.name}",${product.price},${product.costPrice || 0},${product.stock || 0},"${product.category}","${product.image || ''}",${product.isActive ? 'SIM' : 'NÃO'}`
+    ).join("\n");
     const csvContent = "data:text/csv;charset=utf-8," + encodeURI(headers + rows);
     const link = document.createElement("a");
     link.setAttribute("href", csvContent);
@@ -384,8 +386,8 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                         value={formData.category}
                         onChange={e => setFormData({...formData, category: e.target.value as ProductCategory})}
                     >
-                        {Object.values(ProductCategory).map(c => (
-                            <option key={c} value={c}>{c}</option>
+                        {Object.values(ProductCategory).map(category => (
+                            <option key={category} value={category}>{category}</option>
                         ))}
                     </select>
                 </div>
