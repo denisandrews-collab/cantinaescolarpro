@@ -1,5 +1,4 @@
 
-
 export enum ProductCategory {
   SNACK = 'Salgados',
   DRINK = 'Bebidas',
@@ -26,6 +25,8 @@ export interface CartItem extends Product {
 }
 
 export type TransactionType = 'PURCHASE' | 'PAYMENT' | 'ADJUSTMENT' | 'REFUND' | 'EXCHANGE';
+
+export type PaymentMethod = 'MONEY' | 'ACCOUNT' | 'CREDIT' | 'DEBIT' | 'PIX' | 'MIXED';
 
 export interface StudentHistoryEntry {
   id: string;
@@ -80,6 +81,7 @@ export interface Transaction {
   studentBalanceSnapshot?: number; // Saldo do aluno no momento da compra
   userId?: string; // ID do operador que fez a venda
   userName?: string;
+  paymentMethod?: PaymentMethod; // Método de pagamento utilizado
 }
 
 export interface PrinterConfig {
@@ -135,7 +137,7 @@ export interface SystemUser {
 
 // === MULTI-TENANCY & MODULARITY ===
 
-export type AppModule = 'POS' | 'FINANCIAL' | 'INVENTORY' | 'REPORTS' | 'PARENTS_PORTAL' | 'API_INTEGRATION';
+export type AppModule = 'POS' | 'FINANCIAL' | 'INVENTORY' | 'REPORTS' | 'PARENTS_PORTAL' | 'API_INTEGRATION' | 'ACCESS_CONTROL';
 
 export interface Company {
   id: string;

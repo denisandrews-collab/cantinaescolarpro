@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Company, AppModule } from '../types';
 
 interface SuperAdminViewProps {
@@ -13,6 +13,7 @@ const AVAILABLE_MODULES: { key: AppModule; label: string; description: string }[
     { key: 'FINANCIAL', label: 'Financeiro & Alunos', description: 'Gestão de contas de alunos, fiado, cobrança e extratos.' },
     { key: 'INVENTORY', label: 'Estoque & Produtos', description: 'Cadastro de produtos, controle de estoque e trocas.' },
     { key: 'REPORTS', label: 'Relatórios Avançados', description: 'Gráficos, exportação de dados e análise de vendas.' },
+    { key: 'ACCESS_CONTROL', label: 'Gestão de Acesso (Enterprise)', description: 'Gerenciamento de usuários do sistema e senhas dos pais.' },
     { key: 'PARENTS_PORTAL', label: 'Portal dos Pais', description: 'Área externa para responsáveis consultarem saldo.' },
     { key: 'API_INTEGRATION', label: 'Integrações (API)', description: 'Conexão com sistemas externos de alunos/produtos.' },
 ];
@@ -20,11 +21,22 @@ const AVAILABLE_MODULES: { key: AppModule; label: string; description: string }[
 export const SuperAdminView: React.FC<SuperAdminViewProps> = ({ companies, onSaveCompany, onSelectCompany, onDeleteCompany }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   
   const [formData, setFormData] = useState<{name: string, modules: Set<AppModule>}>({
       name: '',
-      modules: new Set(['POS', 'FINANCIAL', 'INVENTORY', 'REPORTS']) // Default modules
+      modules: new Set(['POS', 'FINANCIAL', 'INVENTORY', 'REPORTS', 'ACCESS_CONTROL']) // Default modules
   });
+
+  // FILTER LOGIC: Search by Name OR ID
+  const filteredCompanies = useMemo(() => {
+    if (!searchTerm) return companies;
+    const lowerTerm = searchTerm.toLowerCase();
+    return companies.filter(c => 
+        c.name.toLowerCase().includes(lowerTerm) || 
+        c.id.toLowerCase().includes(lowerTerm)
+    );
+  }, [companies, searchTerm]);
 
   const handleOpenModal = (company?: Company) => {
       if (company) {
@@ -37,7 +49,7 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({ companies, onSav
           setEditingCompany(null);
           setFormData({
               name: '',
-              modules: new Set(['POS', 'FINANCIAL', 'INVENTORY', 'REPORTS'])
+              modules: new Set(['POS', 'FINANCIAL', 'INVENTORY', 'REPORTS', 'ACCESS_CONTROL'])
           });
       }
       setIsModalOpen(true);
@@ -71,22 +83,36 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({ companies, onSav
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-sans p-8">
       <div className="max-w-6xl mx-auto">
-          <header className="flex justify-between items-center mb-10">
+          <header className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
               <div>
                   <h1 className="text-3xl font-bold text-white tracking-tight">CantinaEscolar <span className="text-brand-500">Enterprise</span></h1>
                   <p className="text-gray-400 mt-1">Gerenciamento Multi-Empresas</p>
               </div>
-              <button 
-                onClick={() => handleOpenModal()}
-                className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2"
-              >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="16"/><line x1="8" x2="16" y1="12" y2="12"/></svg>
-                  Nova Empresa
-              </button>
+              <div className="flex gap-4 w-full md:w-auto">
+                <div className="relative flex-1 md:flex-none">
+                    <input 
+                        type="text" 
+                        placeholder="Filtrar por Nome ou ID..." 
+                        className="w-full md:w-72 pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+                <button 
+                    onClick={() => handleOpenModal()}
+                    className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 whitespace-nowrap"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="16"/><line x1="8" x2="16" y1="12" y2="12"/></svg>
+                    Nova Empresa
+                </button>
+              </div>
           </header>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {companies.map(company => (
+              {filteredCompanies.map(company => (
                   <div key={company.id} className="bg-gray-800 border border-gray-700 rounded-2xl p-6 hover:border-brand-500 transition-colors group relative overflow-hidden">
                       <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                           <button onClick={() => handleOpenModal(company)} className="p-2 bg-gray-700 hover:bg-gray-600 rounded text-blue-400" title="Editar Configurações">
@@ -102,7 +128,7 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({ companies, onSav
                               {company.name.charAt(0).toUpperCase()}
                           </div>
                           <h3 className="text-xl font-bold text-white mb-1">{company.name}</h3>
-                          <p className="text-sm text-gray-500">ID: {company.id}</p>
+                          <p className="text-sm text-gray-500 font-mono">ID: {company.id}</p>
                       </div>
 
                       <div className="space-y-2 mb-6">
@@ -132,13 +158,15 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({ companies, onSav
               ))}
 
               {/* Add New Card (Empty State) */}
-              {companies.length === 0 && (
+              {filteredCompanies.length === 0 && (
                   <div className="col-span-full text-center py-20 bg-gray-800/50 rounded-3xl border-2 border-dashed border-gray-700">
-                      <h3 className="text-xl font-bold text-gray-300 mb-2">Nenhuma empresa cadastrada</h3>
-                      <p className="text-gray-500 mb-6">Cadastre sua primeira escola ou cantina para começar.</p>
-                      <button onClick={() => handleOpenModal()} className="bg-brand-600 hover:bg-brand-500 text-white px-8 py-3 rounded-lg font-bold">
-                          Criar Primeira Empresa
-                      </button>
+                      <h3 className="text-xl font-bold text-gray-300 mb-2">Nenhuma empresa encontrada</h3>
+                      <p className="text-gray-500 mb-6">{searchTerm ? 'Tente outro termo de busca.' : 'Cadastre sua primeira escola ou cantina para começar.'}</p>
+                      {!searchTerm && (
+                          <button onClick={() => handleOpenModal()} className="bg-brand-600 hover:bg-brand-500 text-white px-8 py-3 rounded-lg font-bold">
+                              Criar Primeira Empresa
+                          </button>
+                      )}
                   </div>
               )}
           </div>
