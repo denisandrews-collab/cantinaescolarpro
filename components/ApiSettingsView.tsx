@@ -21,16 +21,12 @@ export const ApiSettingsView: React.FC<ApiSettingsViewProps> = ({ onSyncProducts
     setIsLoadingProducts(true);
     try {
         // Simulation of a fetch call
-        // const response = await fetch(productsUrl);
-        // const data = await response.json();
-        
-        // Mock data for demonstration purposes
         await new Promise(resolve => setTimeout(resolve, 1500));
         
         const mockProducts: Product[] = [
-            { id: `api-prod-${Date.now()}-1`, name: 'Bolo de Cenoura (API)', price: 5.50, category: ProductCategory.DESSERT },
-            { id: `api-prod-${Date.now()}-2`, name: 'Suco de Uva (API)', price: 7.00, category: ProductCategory.DRINK },
-            { id: `api-prod-${Date.now()}-3`, name: 'Empada de Palmito (API)', price: 6.00, category: ProductCategory.SNACK },
+            { id: `api-prod-${Date.now()}-1`, name: 'Bolo de Cenoura (API)', price: 5.50, stock: 20, costPrice: 2.00, category: ProductCategory.DESSERT, isActive: true },
+            { id: `api-prod-${Date.now()}-2`, name: 'Suco de Uva (API)', price: 7.00, stock: 50, costPrice: 3.50, category: ProductCategory.DRINK, isActive: true },
+            { id: `api-prod-${Date.now()}-3`, name: 'Empada de Palmito (API)', price: 6.00, stock: 15, costPrice: 2.50, category: ProductCategory.SNACK, isActive: true },
         ];
         
         onSyncProducts(mockProducts);
@@ -54,9 +50,9 @@ export const ApiSettingsView: React.FC<ApiSettingsViewProps> = ({ onSyncProducts
         await new Promise(resolve => setTimeout(resolve, 1500));
 
         const mockStudents: Student[] = [
-            { id: `api-student-${Date.now()}-1`, name: 'João API Silva', grade: '1º Ano A', balance: 0, points: 0, history: [] },
-            { id: `api-student-${Date.now()}-2`, name: 'Maria API Souza', grade: '2º Ano B', balance: 10, points: 0, history: [] },
-            { id: `api-student-${Date.now()}-3`, name: 'Pedro API Santos', grade: '3º Médio', balance: -5, points: 0, history: [] },
+            { id: `api-student-${Date.now()}-1`, name: 'João API Silva', grade: '1º Ano A', balance: 0, points: 0, history: [], isActive: true, isStaff: false, code: 'API01' },
+            { id: `api-student-${Date.now()}-2`, name: 'Maria API Souza', grade: '2º Ano B', balance: 10, points: 0, history: [], isActive: true, isStaff: false, code: 'API02' },
+            { id: `api-student-${Date.now()}-3`, name: 'Pedro API Santos', grade: '3º Médio', balance: -5, points: 0, history: [], isActive: true, isStaff: false, code: 'API03' },
         ];
 
         onSyncStudents(mockStudents);
@@ -109,9 +105,6 @@ export const ApiSettingsView: React.FC<ApiSettingsViewProps> = ({ onSyncProducts
                         </>
                     ) : 'Sincronizar Produtos'}
                 </button>
-                <p className="text-xs text-gray-400">
-                    Importará novos produtos e atualizará preços existentes baseados no ID.
-                </p>
             </div>
         </div>
 
@@ -150,50 +143,6 @@ export const ApiSettingsView: React.FC<ApiSettingsViewProps> = ({ onSyncProducts
                         </>
                     ) : 'Sincronizar Alunos'}
                 </button>
-                <p className="text-xs text-gray-400">
-                    Sincroniza saldos e turmas. Novos alunos serão adicionados ao sistema.
-                </p>
-            </div>
-        </div>
-      </div>
-      
-      {/* Documentation Section */}
-      <div className="mt-8 bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-        <h4 className="font-bold text-yellow-800 mb-3 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
-            Especificação Técnica JSON
-        </h4>
-        <p className="text-sm text-yellow-700 mb-4">
-            Configure seu backend para retornar os dados nos seguintes formatos JSON:
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white p-4 rounded-lg border border-yellow-200 shadow-sm">
-                <p className="text-xs font-bold text-gray-500 mb-2 uppercase">Resposta Produtos</p>
-                <pre className="text-xs font-mono text-gray-600 overflow-x-auto bg-gray-50 p-2 rounded">
-{`[
-  {
-    "id": "101",
-    "name": "Coxinha",
-    "price": 5.00,
-    "category": "Salgados"
-  },
-  ...
-]`}
-                </pre>
-            </div>
-            <div className="bg-white p-4 rounded-lg border border-yellow-200 shadow-sm">
-                <p className="text-xs font-bold text-gray-500 mb-2 uppercase">Resposta Alunos</p>
-                <pre className="text-xs font-mono text-gray-600 overflow-x-auto bg-gray-50 p-2 rounded">
-{`[
-  {
-    "id": "2024001",
-    "name": "Ana Silva",
-    "grade": "5º A",
-    "balance": 0.00
-  },
-  ...
-]`}
-                </pre>
             </div>
         </div>
       </div>
