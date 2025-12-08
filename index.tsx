@@ -51,7 +51,15 @@ if (!container) {
   const root = createRoot(container);
 
   let lastError: any = null;
+  let isHandlingError = false;
+  
   function setGlobalError(e: any) {
+    // Prevent infinite error loops
+    if (isHandlingError) {
+      console.error("Error while handling error (prevented infinite loop):", e);
+      return;
+    }
+    isHandlingError = true;
     lastError = e;
     root.render(
       <React.StrictMode>
@@ -62,6 +70,8 @@ if (!container) {
       </React.StrictMode>
     );
     console.error("Global error captured:", e);
+    // Reset flag after a short delay to allow recovery
+    setTimeout(() => { isHandlingError = false; }, 100);
   }
 
   window.addEventListener('error', (ev) => {
