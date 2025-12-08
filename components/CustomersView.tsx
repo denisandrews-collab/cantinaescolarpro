@@ -74,16 +74,16 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
       let filtered = students;
 
       // Filter by Type
-      if (filterType === 'STUDENT') filtered = filtered.filter(s => !s.isStaff);
-      if (filterType === 'STAFF') filtered = filtered.filter(s => s.isStaff);
+      if (filterType === 'STUDENT') filtered = filtered.filter(student => !student.isStaff);
+      if (filterType === 'STAFF') filtered = filtered.filter(student => student.isStaff);
 
       // Filter by Search
       if (searchQuery) {
-          const q = searchQuery.toLowerCase();
-          filtered = filtered.filter(s => 
-            s.name.toLowerCase().includes(q) || 
-            s.code?.toLowerCase().includes(q) || 
-            s.grade.toLowerCase().includes(q)
+          const lowerCaseQuery = searchQuery.toLowerCase();
+          filtered = filtered.filter(student => 
+            student.name.toLowerCase().includes(lowerCaseQuery) || 
+            student.code?.toLowerCase().includes(lowerCaseQuery) || 
+            student.grade.toLowerCase().includes(lowerCaseQuery)
           );
       }
       
@@ -91,10 +91,10 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
   }, [students, searchQuery, filterType]);
 
   // Handle Selection
-  const toggleSelection = (id: string) => {
+  const toggleSelection = (studentId: string) => {
       const newSet = new Set(selectedIds);
-      if (newSet.has(id)) newSet.delete(id);
-      else newSet.add(id);
+      if (newSet.has(studentId)) newSet.delete(studentId);
+      else newSet.add(studentId);
       setSelectedIds(newSet);
   };
 
@@ -102,7 +102,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
       if (selectedIds.size === filteredStudents.length && filteredStudents.length > 0) {
           setSelectedIds(new Set());
       } else {
-          setSelectedIds(new Set(filteredStudents.map(s => s.id)));
+          setSelectedIds(new Set(filteredStudents.map(student => student.id)));
       }
   };
 
