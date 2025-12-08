@@ -43,13 +43,16 @@ export interface Student {
   grade: string;
   isStaff?: boolean;
   isActive?: boolean;
+  
   guardianName?: string;
   guardianEmail?: string;
   guardianPhone?: string;
   guardianPassword?: string;
+
   balance: number;
   points: number;
   notes?: string;
+
   history: StudentHistoryEntry[];
 }
 
