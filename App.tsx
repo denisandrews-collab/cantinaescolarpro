@@ -34,7 +34,57 @@ const sanitizeStudents = (data: any[]): Student[] => { if (!Array.isArray(data))
 const sanitizeProducts = (data: any[]): Product[] => { if (!Array.isArray(data)) return []; return data.map(p => ({ ...p, stock: typeof p.stock === 'number' ? p.stock : 0, costPrice: typeof p.costPrice === 'number' ? p.costPrice : 0, isActive: p.isActive ?? true, isFavorite: p.isFavorite ?? false })); };
 const sanitizeTransactions = (data: any[]): Transaction[] => { if (!Array.isArray(data)) return []; return data.map(t => ({ ...t, date: new Date(t.date), status: t.status || 'VALID', items: t.items || [] })); };
 const sanitizeSystemUsers = (data: any[]): SystemUser[] => { if (!Array.isArray(data)) return []; return data.map(u => ({ ...u, role: u.role || 'CASHIER' })); };
-const sanitizeSettings = (data: any): SystemSettings => { if (!data || typeof data !== 'object') return DEFAULT_SETTINGS; return { ...DEFAULT_SETTINGS, ...data, features: { ...DEFAULT_SETTINGS.features, ...(data.features || {}) }, paymentMethods: { ...DEFAULT_SETTINGS.paymentMethods, ...(data.paymentMethods || {}) }, kitchenPrinter: { ...DEFAULT_SETTINGS.kitchenPrinter, ...(data.kitchenPrinter || {}) }, counterPrinter: { ...DEFAULT_SETTINGS.counterPrinter, ...(data.counterPrinter || {}) } }; };
+/**
+ * Sanitiza configurações do sistema de forma segura
+ * - Trata valores falsy (undefined, null, '') retornando objeto vazio {}
+ * - Faz parse seguro de strings JSON, retornando {} em caso de erro
+ * - Retorna deep clone para objetos (não muta entrada)
+ * - Converte tipos primitivos (number, boolean) para {}
+ */
+const sanitizeSettings = (data: any): SystemSettings => {
+    // Trata valores falsy - retorna configurações padrão
+    if (!data) return { ...DEFAULT_SETTINGS };
+    
+    // Se for string, tenta fazer parse JSON de forma segura
+    if (typeof data === 'string') {
+        try {
+            const parsed = JSON.parse(data);
+            // Recursivamente sanitiza o resultado do parse
+            return sanitizeSettings(parsed);
+        } catch (e) {
+            // Em caso de erro de parse, retorna configurações padrão
+            return { ...DEFAULT_SETTINGS };
+        }
+    }
+    
+    // Se não for objeto (number, boolean, etc), retorna configurações padrão
+    if (typeof data !== 'object') return { ...DEFAULT_SETTINGS };
+    
+    // Se for array, retorna configurações padrão (não é um objeto válido de configurações)
+    if (Array.isArray(data)) return { ...DEFAULT_SETTINGS };
+    
+    // Deep clone do objeto sanitizado - não muta o original
+    return {
+        ...DEFAULT_SETTINGS,
+        ...data,
+        features: {
+            ...DEFAULT_SETTINGS.features,
+            ...(data.features && typeof data.features === 'object' && !Array.isArray(data.features) ? data.features : {})
+        },
+        paymentMethods: {
+            ...DEFAULT_SETTINGS.paymentMethods,
+            ...(data.paymentMethods && typeof data.paymentMethods === 'object' && !Array.isArray(data.paymentMethods) ? data.paymentMethods : {})
+        },
+        kitchenPrinter: {
+            ...DEFAULT_SETTINGS.kitchenPrinter,
+            ...(data.kitchenPrinter && typeof data.kitchenPrinter === 'object' && !Array.isArray(data.kitchenPrinter) ? data.kitchenPrinter : {})
+        },
+        counterPrinter: {
+            ...DEFAULT_SETTINGS.counterPrinter,
+            ...(data.counterPrinter && typeof data.counterPrinter === 'object' && !Array.isArray(data.counterPrinter) ? data.counterPrinter : {})
+        }
+    };
+};
 const sanitizeCashEntries = (data: any[]): CashEntry[] => { if (!Array.isArray(data)) return []; return data.map(c => ({ ...c, date: new Date(c.date) })); };
 const sanitizeCompanies = (data: any[]): Company[] => { if (!Array.isArray(data)) return []; return data.map(c => ({ ...c, modules: Array.isArray(c.modules) ? c.modules : ['POS', 'FINANCIAL', 'INVENTORY', 'REPORTS'] })); };
 
