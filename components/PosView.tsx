@@ -118,9 +118,24 @@ export const PosView: React.FC<PosViewProps> = ({
     });
   };
 
-  const removeFromCart = (productId: string) => setCart(prev => prev.filter(item => item.id !== productId));
-  const updateQuantity = (productId: string, delta: number) => { setCart(prev => prev.map(item => { if (item.id === productId) { const newQty = item.quantity + delta; return { ...item, quantity: Math.max(1, newQty) }; } return item; })); };
-  const addItemNote = (productId: string) => { const note = prompt("Obs:"); if (note !== null) setCart(prev => prev.map(item => item.id === productId ? { ...item, notes: note } : item)); };
+  const removeFromCart = (productId: string) => setCart(previousCart => previousCart.filter(item => item.id !== productId));
+  
+  const updateQuantity = (productId: string, delta: number) => { 
+      setCart(previousCart => previousCart.map(item => { 
+          if (item.id === productId) { 
+              const newQuantity = item.quantity + delta; 
+              return { ...item, quantity: Math.max(1, newQuantity) }; 
+          } 
+          return item; 
+      })); 
+  };
+  
+  const addItemNote = (productId: string) => { 
+      const note = prompt("Obs:"); 
+      if (note !== null) setCart(previousCart => previousCart.map(item => 
+          item.id === productId ? { ...item, notes: note } : item
+      )); 
+  };
   
   // Student Modal Selection
   const handleSelectStudent = (student: Student) => { 

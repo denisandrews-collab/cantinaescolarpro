@@ -282,7 +282,9 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
   // Import/Export Logic
   const handleExportCSV = () => {
     const headers = "ID,Código,Nome,Turma,Responsável,Email Resp,Telefone Resp,Saldo,Ativo\n";
-    const rows = students.map(s => `${s.id},"${s.code || ''}","${s.name}","${s.grade}","${s.guardianName || ''}","${s.guardianEmail || ''}","${s.guardianPhone || ''}",${s.balance},${s.isActive ? 'SIM' : 'NÃO'}`).join("\n");
+    const rows = students.map(student => 
+        `${student.id},"${student.code || ''}","${student.name}","${student.grade}","${student.guardianName || ''}","${student.guardianEmail || ''}","${student.guardianPhone || ''}",${student.balance},${student.isActive ? 'SIM' : 'NÃO'}`
+    ).join("\n");
     const csvContent = "data:text/csv;charset=utf-8," + encodeURI(headers + rows);
     const link = document.createElement("a");
     link.setAttribute("href", csvContent);
