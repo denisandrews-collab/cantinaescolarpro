@@ -53,6 +53,9 @@ const NavButton = React.memo<{ active: boolean; onClick: () => void; icon: React
     </button>
 ));
 
+// Display name for debugging
+NavButton.displayName = 'NavButton';
+
 // === TENANT APP ===
 const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company, onExit }) => {
     const [currentUser, setCurrentUser] = useState<SystemUser | null>(() => {

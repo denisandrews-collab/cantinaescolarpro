@@ -186,4 +186,3 @@ export const Receipt = React.memo<ReceiptProps>(({ transaction, settings, onClos
 
 // Display name for debugging
 Receipt.displayName = 'Receipt';
-};

@@ -31,15 +31,15 @@ export function debounce<T extends (...args: any[]) => any>(
 export function throttle<T extends (...args: any[]) => any>(
   func: T,
   wait: number
-): (...args: Parameters<T>) => void {
-  let inThrottle: boolean;
-  let lastResult: ReturnType<T>;
+): (...args: Parameters<T>) => ReturnType<T> | undefined {
+  let inThrottle: boolean = false;
+  let lastResult: ReturnType<T> | undefined;
 
-  return function executedFunction(...args: Parameters<T>) {
+  return function executedFunction(...args: Parameters<T>): ReturnType<T> | undefined {
     if (!inThrottle) {
+      lastResult = func(...args);
       inThrottle = true;
       setTimeout(() => (inThrottle = false), wait);
-      lastResult = func(...args);
     }
     return lastResult;
   };
@@ -47,12 +47,18 @@ export function throttle<T extends (...args: any[]) => any>(
 
 /**
  * Memoizes the result of a function based on its arguments
+ * Note: For better performance with complex objects, consider using a specialized library
+ * like 'fast-memoize' or implementing a custom key generation strategy
  */
 export function memoize<T extends (...args: any[]) => any>(func: T): T {
   const cache = new Map<string, ReturnType<T>>();
 
   return ((...args: Parameters<T>): ReturnType<T> => {
-    const key = JSON.stringify(args);
+    // Simple key generation - works for primitives and simple objects
+    // For complex objects or circular references, consider using a more robust solution
+    const key = args.length === 0 ? '__no_args__' : 
+                args.length === 1 && typeof args[0] !== 'object' ? String(args[0]) :
+                JSON.stringify(args);
     
     if (cache.has(key)) {
       return cache.get(key)!;
