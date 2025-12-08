@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Student, StudentHistoryEntry } from '../types';
+import { formatCurrency } from '../utils';
 
 interface GuardianPortalViewProps {
   students: Student[];
@@ -293,8 +294,7 @@ export const GuardianPortalView: React.FC<GuardianPortalViewProps> = ({ students
                 <p className="text-gray-500 uppercase text-xs font-bold tracking-wider mb-2">Saldo Total da Família</p>
                 <div className="flex items-end gap-2">
                     <span className={`text-4xl font-black ${totalBalance < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        {totalBalance < 0 ? '- R$ ' : 'R$ '} 
-                        {Math.abs(totalBalance).toFixed(2)}
+                        {totalBalance < 0 ? '- ' : ''}{formatCurrency(Math.abs(totalBalance))}
                     </span>
                     <span className="text-gray-400 mb-2 text-sm font-medium">
                         {totalBalance < 0 ? '(Devedor)' : '(Crédito)'}
@@ -323,7 +323,7 @@ export const GuardianPortalView: React.FC<GuardianPortalViewProps> = ({ students
                         <div className="text-right">
                             <p className="text-xs text-gray-400 uppercase font-bold mb-0.5">Saldo</p>
                             <p className={`font-bold ${student.balance < 0 ? 'text-red-500' : 'text-green-600'}`}>
-                                {student.balance < 0 ? '-' : ''}R$ {Math.abs(student.balance).toFixed(2)}
+                                {student.balance < 0 ? '-' : ''}{formatCurrency(Math.abs(student.balance))}
                             </p>
                         </div>
                     </div>
@@ -351,7 +351,7 @@ export const GuardianPortalView: React.FC<GuardianPortalViewProps> = ({ students
                                     </div>
                                     <div className="flex-1 md:text-right">
                                         <p className={`font-bold ${entry.type === 'PURCHASE' ? 'text-red-500' : 'text-green-600'}`}>
-                                            {entry.type === 'PURCHASE' ? '-' : '+'} R$ {entry.value.toFixed(2)}
+                                            {entry.type === 'PURCHASE' ? '- ' : '+ '}{formatCurrency(entry.value)}
                                         </p>
                                     </div>
                                 </div>

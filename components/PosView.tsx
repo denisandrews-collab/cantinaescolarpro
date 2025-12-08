@@ -4,7 +4,7 @@ import { CategoryIcons } from '../constants';
 import { Receipt } from './Receipt';
 import { generateReceiptMessage } from '../services/geminiService';
 import { createPixCharge, PixChargeResponse } from '../services/itauService';
-import { filterStudents } from '../utils';
+import { filterStudents, formatCurrency } from '../utils';
 
 interface PosViewProps {
   products: Product[];
@@ -239,7 +239,7 @@ export const PosView: React.FC<PosViewProps> = ({
                     <div className={`h-32 w-full flex items-center justify-center relative overflow-hidden ${!isStockBlocked ? 'bg-gray-50' : 'bg-gray-100'}`}>
                       {product.image ? <img src={product.image} className="w-full h-full object-cover" /> : <div className="text-gray-300 transform scale-150">{CategoryIcons[product.category]}</div>}
                     </div>
-                    <div className="p-3 flex flex-col flex-1"><h3 className="font-bold text-gray-800 text-sm mb-1 leading-tight line-clamp-2">{product.name}</h3><div className="mt-auto flex justify-between items-end"><span className="font-black text-lg text-brand-600">R$ {product.price.toFixed(2)}</span></div></div>
+                    <div className="p-3 flex flex-col flex-1"><h3 className="font-bold text-gray-800 text-sm mb-1 leading-tight line-clamp-2">{product.name}</h3><div className="mt-auto flex justify-between items-end"><span className="font-black text-lg text-brand-600">{formatCurrency(product.price)}</span></div></div>
                   </button>
                 )})}
              </div>
@@ -255,7 +255,7 @@ export const PosView: React.FC<PosViewProps> = ({
           {selectedStudent ? (
             <div className={`bg-green-50 border border-green-200 rounded-lg p-3 ${selectedStudent.notes || overdueStatus.isOverdue ? 'ring-2 ring-red-500 ring-offset-2' : ''}`}>
               <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-green-200 flex items-center justify-center text-green-700 font-bold text-lg">{selectedStudent.name.charAt(0)}</div><div><p className="font-bold text-gray-800 leading-tight">{selectedStudent.name}</p><p className="text-xs text-gray-500">{selectedStudent.grade}</p></div></div>
-              <div className="mt-2 pt-2 border-t border-green-200 flex justify-between text-sm"><span className="text-gray-600">Saldo:</span><span className={`font-bold ${selectedStudent.balance < 0 ? 'text-red-500' : 'text-green-600'}`}>R$ {selectedStudent.balance.toFixed(2)}</span></div>
+              <div className="mt-2 pt-2 border-t border-green-200 flex justify-between text-sm"><span className="text-gray-600">Saldo:</span><span className={`font-bold ${selectedStudent.balance < 0 ? 'text-red-500' : 'text-green-600'}`}>{formatCurrency(selectedStudent.balance)}</span></div>
               {overdueStatus.isOverdue && <div className="mt-2 bg-red-600 text-white p-2 rounded text-xs font-bold animate-pulse text-center">⛔ BLOQUEADO</div>}
             </div>
           ) : (
@@ -268,11 +268,11 @@ export const PosView: React.FC<PosViewProps> = ({
                 <div key={item.id} className="flex justify-between items-center bg-gray-50 p-2 rounded">
                     <div>
                         <p className="font-bold text-sm">{item.name}</p>
-                        <p className="text-xs text-gray-500">{item.quantity}x R$ {item.price.toFixed(2)}</p>
+                        <p className="text-xs text-gray-500">{item.quantity}x {formatCurrency(item.price)}</p>
                         {item.notes && <p className="text-[10px] text-orange-600 italic">Obs: {item.notes}</p>}
                     </div>
                     <div className="flex items-center gap-2">
-                        <p className="font-bold">R$ {(item.quantity * item.price).toFixed(2)}</p>
+                        <p className="font-bold">{formatCurrency(item.quantity * item.price)}</p>
                         <button onClick={() => removeFromCart(item.id)} className="text-red-500">x</button>
                     </div>
                 </div>

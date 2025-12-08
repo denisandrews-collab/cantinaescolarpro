@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Product, Student } from '../types';
-import { filterStudents } from '../utils';
+import { filterStudents, formatCurrency } from '../utils';
 
 interface ExchangeViewProps {
   products: Product[];
@@ -123,7 +123,7 @@ export const ExchangeView: React.FC<ExchangeViewProps> = ({ products, students, 
                             <div key={`${p.id}-${idx}-in`} className="p-3 bg-red-50 rounded-lg border border-red-200 flex justify-between items-center">
                                 <div>
                                     <p className="font-bold text-gray-800 text-sm">{p.name}</p>
-                                    <p className="font-bold text-red-600 text-xs">R$ {p.price.toFixed(2)}</p>
+                                    <p className="font-bold text-red-600 text-xs">{formatCurrency(p.price)}</p>
                                 </div>
                                 <button onClick={() => removeProductIn(idx)} className="text-red-400 hover:text-red-600 p-1">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
@@ -140,7 +140,7 @@ export const ExchangeView: React.FC<ExchangeViewProps> = ({ products, students, 
                                 {filteredProductsIn.map(p => (
                                     <button key={p.id} onClick={() => addProductIn(p)} className="w-full text-left p-2 hover:bg-gray-50 rounded text-sm flex justify-between group">
                                         <span className="group-hover:text-red-700 font-medium">+ {p.name}</span>
-                                        <span className="font-bold text-gray-500">R$ {p.price.toFixed(2)}</span>
+                                        <span className="font-bold text-gray-500">{formatCurrency(p.price)}</span>
                                     </button>
                                 ))}
                             </div>
@@ -151,7 +151,7 @@ export const ExchangeView: React.FC<ExchangeViewProps> = ({ products, students, 
                 {/* Total Incoming */}
                 <div className="p-3 bg-red-100 text-red-800 flex justify-between font-bold text-sm">
                     <span>Total Devolução:</span>
-                    <span>R$ {totalIn.toFixed(2)}</span>
+                    <span>{formatCurrency(totalIn)}</span>
                 </div>
             </div>
 
@@ -182,7 +182,7 @@ export const ExchangeView: React.FC<ExchangeViewProps> = ({ products, students, 
                             <div key={`${p.id}-${idx}-out`} className="p-3 bg-green-50 rounded-lg border border-green-200 flex justify-between items-center">
                                 <div>
                                     <p className="font-bold text-gray-800 text-sm">{p.name}</p>
-                                    <p className="font-bold text-green-600 text-xs">R$ {p.price.toFixed(2)}</p>
+                                    <p className="font-bold text-green-600 text-xs">{formatCurrency(p.price)}</p>
                                 </div>
                                 <button onClick={() => removeProductOut(idx)} className="text-green-400 hover:text-red-500 p-1">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
@@ -199,7 +199,7 @@ export const ExchangeView: React.FC<ExchangeViewProps> = ({ products, students, 
                                 {filteredProductsOut.map(p => (
                                     <button key={p.id} onClick={() => addProductOut(p)} className="w-full text-left p-2 hover:bg-gray-50 rounded text-sm flex justify-between group">
                                         <span className="group-hover:text-green-700 font-medium">+ {p.name}</span>
-                                        <span className="font-bold text-gray-500">R$ {p.price.toFixed(2)}</span>
+                                        <span className="font-bold text-gray-500">{formatCurrency(p.price)}</span>
                                     </button>
                                 ))}
                             </div>
@@ -210,7 +210,7 @@ export const ExchangeView: React.FC<ExchangeViewProps> = ({ products, students, 
                 {/* Total Outgoing */}
                 <div className="p-3 bg-green-100 text-green-800 flex justify-between font-bold text-sm">
                     <span>Total Saída:</span>
-                    <span>R$ {totalOut.toFixed(2)}</span>
+                    <span>{formatCurrency(totalOut)}</span>
                 </div>
             </div>
 
@@ -257,7 +257,7 @@ export const ExchangeView: React.FC<ExchangeViewProps> = ({ products, students, 
                 <div className="flex-1 w-full text-center">
                     <p className="text-sm text-gray-500 uppercase font-bold">Diferença de Valor</p>
                     <p className={`text-3xl font-black ${priceDiff > 0 ? 'text-red-500' : priceDiff < 0 ? 'text-green-500' : 'text-gray-400'}`}>
-                        R$ {Math.abs(priceDiff).toFixed(2)}
+                        {formatCurrency(Math.abs(priceDiff))}
                     </p>
                     <div className="mt-2 flex justify-center">
                         {priceDiff > 0 ? (

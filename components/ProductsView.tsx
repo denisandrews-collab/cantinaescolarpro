@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { Product, ProductCategory } from '../types';
 import { CategoryIcons } from '../constants';
+import { formatCurrency } from '../utils';
 
 interface ProductsViewProps {
   products: Product[];
@@ -283,10 +284,10 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                     </span>
                 </td>
                 <td className="p-4 text-right text-gray-500 text-sm">
-                  {product.costPrice?.toFixed(2) || '0.00'}
+                  {formatCurrency(product.costPrice || 0)}
                 </td>
                 <td className="p-4 text-right font-bold text-gray-800">
-                  {product.price.toFixed(2)}
+                  {formatCurrency(product.price)}
                 </td>
                 <td className="p-4 flex justify-center gap-2">
                   <button onClick={(e) => { e.stopPropagation(); handleOpenModal(product); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded">

@@ -481,7 +481,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                                     {student.points || 0} pts
                                 </td>
                                 <td className={`p-4 text-right font-bold ${student.balance < 0 ? 'text-red-500' : 'text-green-600'}`}>
-                                {student.balance.toFixed(2)}
+                                {formatCurrency(student.balance)}
                                 </td>
                                 <td className="p-4 flex justify-center gap-2">
                                     <button 
@@ -548,14 +548,14 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                                                                 <td className="px-4 py-2 text-gray-800">{entry.description}</td>
                                                                 <td className="px-4 py-2 text-right text-gray-500 font-mono text-xs">
                                                                     {entry.balanceAfter !== undefined ? 
-                                                                        (entry.balanceAfter < 0 ? `Deve R$ ${Math.abs(entry.balanceAfter).toFixed(2)}` : `Créd. R$ ${entry.balanceAfter.toFixed(2)}`)
+                                                                        (entry.balanceAfter < 0 ? `Deve ${formatCurrency(Math.abs(entry.balanceAfter))}` : `Créd. ${formatCurrency(entry.balanceAfter)}`)
                                                                         : '-'
                                                                     }
                                                                 </td>
                                                                 <td className={`px-4 py-2 text-right font-bold ${
                                                                     entry.type === 'PAYMENT' || entry.type === 'REFUND' ? 'text-green-600' : 'text-red-500'
                                                                 }`}>
-                                                                    {entry.type === 'PAYMENT' || entry.type === 'REFUND' ? '+' : '-'} R$ {entry.value.toFixed(2)}
+                                                                    {entry.type === 'PAYMENT' || entry.type === 'REFUND' ? '+ ' : '- '}{formatCurrency(entry.value)}
                                                                 </td>
                                                                 <td className="px-4 py-2 text-center">
                                                                     {entry.items && entry.items.length > 0 && (
@@ -590,8 +590,8 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                                                                                         <tr key={idx} className="border-b border-gray-50 last:border-0">
                                                                                             <td className="py-1.5 font-medium text-gray-800">{item.name}</td>
                                                                                             <td className="py-1.5 text-right text-gray-600">{item.quantity}</td>
-                                                                                            <td className="py-1.5 text-right text-gray-600">R$ {item.price.toFixed(2)}</td>
-                                                                                            <td className="py-1.5 text-right font-bold text-gray-800">R$ {(item.price * item.quantity).toFixed(2)}</td>
+                                                                                            <td className="py-1.5 text-right text-gray-600">{formatCurrency(item.price)}</td>
+                                                                                            <td className="py-1.5 text-right font-bold text-gray-800">{formatCurrency(item.price * item.quantity)}</td>
                                                                                         </tr>
                                                                                     ))}
                                                                                 </tbody>
@@ -875,7 +875,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                     <h3 className="text-xl font-bold text-gray-800">Receber Pagamento</h3>
                     <p className="text-sm text-gray-500">Cliente: <span className="font-bold">{paymentStudent.name}</span></p>
                     <p className={`text-sm font-bold mt-1 ${paymentStudent.balance < 0 ? 'text-red-500' : 'text-green-600'}`}>
-                        Saldo Atual: {paymentStudent.balance < 0 ? `Devendo R$ ${Math.abs(paymentStudent.balance).toFixed(2)}` : `Crédito R$ ${paymentStudent.balance.toFixed(2)}`}
+                        Saldo Atual: {paymentStudent.balance < 0 ? `Devendo ${formatCurrency(Math.abs(paymentStudent.balance))}` : `Crédito ${formatCurrency(paymentStudent.balance)}`}
                     </p>
                 </div>
 
