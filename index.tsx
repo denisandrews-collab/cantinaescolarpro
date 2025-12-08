@@ -1,30 +1,45 @@
-import React from 'react';
-import { createRoot } from 'react-dom/client';
-import App from './App';
+import React from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App";
 
-console.log('DIAG: index.tsx carregou'); // certifique-se de ver isto no console
-
-try {
-  const container = document.getElementById('root');
-  if (!container) {
-    console.error('DIAG: elemento #root não encontrado');
-    const el = document.createElement('div');
-    el.textContent = 'DIAG: root não encontrado';
-    el.style.background = 'red';
-    el.style.color = 'white';
-    el.style.padding = '10px';
-    document.body.appendChild(el);
-  } else {
-    // mostra um outline temporário para ver se o root existe visualmente
-    container.style.outline = '3px dashed lime';
-    const root = createRoot(container);
-    root.render(<App />);
-    console.log('DIAG: React.render() chamado');
+// Simple Error Boundary to catch crashes
+class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: any}> {
+  constructor(props: {children: React.ReactNode}) {
+    super(props);
+    this.state = { hasError: false, error: null };
   }
-} catch (err) {
-  console.error('DIAG: erro ao renderizar index.tsx', err);
-  const pre = document.createElement('pre');
-  pre.style.color = 'red';
-  pre.textContent = String(err);
-  document.body.appendChild(pre);
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("Uncaught error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: "20px", color: "red", fontFamily: "sans-serif" }}>
+          <h1>Algo deu errado.</h1>
+          <p>Por favor, recarregue a página.</p>
+          <pre style={{ background: "#f0f0f0", padding: "10px", borderRadius: "5px" }}>
+            {this.state.error?.toString()}
+          </pre>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
 }
+
+const container = document.getElementById("root");
+const root = createRoot(container!);
+root.render(
+  <React.StrictMode>
+    <ErrorBoundary>
+        <App />
+    </ErrorBoundary>
+  </React.StrictMode>
+);

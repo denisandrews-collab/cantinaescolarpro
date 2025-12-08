@@ -1,65 +1,133 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="pt-BR">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <title>Cantina Escolar Pro</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CantinaEscolar Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: '#f0fdf4',
+                100: '#dcfce7',
+                500: '#22c55e',
+                600: '#16a34a',
+                700: '#15803d',
+              }
+            }
+          }
+        }
+      }
+    </script>
     <style>
-      /* Banner de diagnóstico visível mesmo sem JS */
-      #diagnostic-static {
-        position: fixed;
-        top: 8px;
-        right: 8px;
-        background: #ffeb3b;
-        color: #000;
-        padding: 6px 10px;
-        z-index: 99999;
-        border-radius: 4px;
-        font-family: sans-serif;
-        font-size: 12px;
+      /* --- CUSTOM SCROLLBAR --- */
+      /* Barra Vertical Fina */
+      ::-webkit-scrollbar {
+        width: 4px;
+        height: 0px; /* Garante que a horizontal não tenha altura */
+      }
+      
+      ::-webkit-scrollbar-track {
+        background: transparent; 
+      }
+      
+      ::-webkit-scrollbar-thumb {
+        background-color: rgba(156, 163, 175, 0.5);
+        border-radius: 10px;
+        transition: background-color 0.3s;
+      }
+      
+      ::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(107, 114, 128, 0.8);
       }
 
-      /* Garanta que root não esteja escondido por padrão */
-      #root { min-height: 100vh; }
-    </style>
-  </head>
-  <body class="bg-gray-50 text-gray-900 font-sans antialiased">
-    <!-- Banner que sempre aparece (verifica se o HTML está sendo servido) -->
-    <div id="diagnostic-static">HTML OK — se isso NÃO aparecer, o problema é de carregamento estático</div>
+      /* Oculta completamente a barra horizontal */
+      ::-webkit-scrollbar-horizontal {
+        display: none !important;
+        height: 0px !important;
+        width: 0px !important;
+        background: transparent;
+      }
 
-    <div id="root"></div>
+      /* Firefox */
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+      }
+      
+      html, body {
+        overflow-x: hidden; /* Bloqueia rolagem horizontal na página inteira */
+        width: 100vw;
+        max-width: 100%;
+      }
 
-    <noscript>
-      <div style="position:fixed;bottom:8px;left:8px;background:#f44336;color:#fff;padding:6px;border-radius:4px;z-index:99999;">
-        JavaScript está desativado. Ative JS para ver a aplicação.
-      </div>
-    </noscript>
+      #root {
+        overflow-x: hidden;
+      }
 
-    <!-- Error overlay and handlers to surface runtime errors to the page for debugging -->
-    <script>
-      (function(){
-        function showError(err){
-          try{
-            var overlay = document.getElementById('__error_overlay__');
-            if(!overlay){
-              overlay = document.createElement('div');
-              overlay.id = '__error_overlay__';
-              overlay.style = 'position:fixed;left:0;top:0;right:0;background:#fee;color:#900;padding:12px;z-index:99999;white-space:pre-wrap;font-family:monospace;max-height:50vh;overflow:auto;border-bottom:2px solid #fbb';
-              document.body.appendChild(overlay);
-            }
-            var text = err && err.stack ? err.stack : String(err);
-            overlay.textContent = 'JavaScript error:\n' + text;
-            console.error(err);
-          }catch(e){ /* ignore */ }
+      /* --- PRINT STYLES --- */
+      @media print {
+        @page {
+          size: 80mm auto; 
+          margin: 0;
         }
-        window.addEventListener('error', function(e){ showError(e.error || e.message || e); });
-        window.addEventListener('unhandledrejection', function(e){ showError(e.reason || e); });
-        var origConsoleError = console.error.bind(console);
-        console.error = function(){ try{ showError(Array.prototype.slice.call(arguments).map(function(a){ try{ return a.stack || JSON.stringify(a); }catch(e){ return String(a); } }).join(' ')); }catch(e){}; origConsoleError.apply(null, arguments); };
-      })();
-    </script>
-
-    <!-- Entrypoint corrigido -->
-    <script type="module" src="/src/main.tsx"></script>
+        body {
+          width: 80mm;
+          margin: 0;
+          padding: 0;
+          overflow: visible !important;
+        }
+        body > * {
+          display: none !important;
+        }
+        body > .printable, .printable, .printable * {
+          display: block !important;
+          visibility: visible !important;
+        }
+        .printable {
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 80mm !important; 
+          max-width: 80mm !important;
+          margin: 0 !important;
+          padding: 5px !important;
+          background: white !important;
+          color: black !important;
+          z-index: 9999 !important;
+          box-shadow: none !important;
+          border: none !important;
+          font-family: monospace; 
+        }
+        .no-print, .print\:hidden {
+          display: none !important;
+        }
+        .print\:block {
+          display: block !important;
+        }
+        .print\:border-black {
+            border-color: #000 !important;
+        }
+        .print\:text-black {
+            color: #000 !important;
+        }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0"
+  }
+}
+</script>
+</head>
+  <body class="bg-gray-50 text-gray-900 font-sans antialiased overflow-x-hidden">
+    <div id="root"></div>
   </body>
 </html>
