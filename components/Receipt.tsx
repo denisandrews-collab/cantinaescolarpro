@@ -7,7 +7,7 @@ interface ReceiptProps {
   onClose: () => void;
 }
 
-export const Receipt: React.FC<ReceiptProps> = ({ transaction, settings, onClose }) => {
+export const Receipt = React.memo<ReceiptProps>(({ transaction, settings, onClose }) => {
   const { id, studentName, items, total, date, aiMessage, studentBalanceSnapshot } = transaction;
   const formattedDate = date.toLocaleString('pt-BR');
 
@@ -182,4 +182,7 @@ export const Receipt: React.FC<ReceiptProps> = ({ transaction, settings, onClose
       </div>
     </div>
   );
-};
+});
+
+// Display name for debugging
+Receipt.displayName = 'Receipt';

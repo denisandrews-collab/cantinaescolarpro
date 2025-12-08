@@ -39,28 +39,42 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ products, transact
   const staffPercentage = totalPeople > 0 ? staffCount / totalPeople : 0;
   const staffOffset = circumference - (staffPercentage * circumference);
 
-  // 4. Bar Chart Data (Last 7 Days Sales)
+  // 4. Bar Chart Data (Last 7 Days Sales) - Optimized with single iteration
   const chartData = useMemo(() => {
     const data = [];
+    const today = new Date();
+    
+    // Create date buckets for the last 7 days
+    const dateBuckets: { [key: string]: { label: string; value: number } } = {};
+    
     for (let i = 6; i >= 0; i--) {
-        const d = new Date();
+        const d = new Date(today);
         d.setDate(d.getDate() - i);
-        
+        const dateKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
         const dayLabel = d.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' });
-
-        const dailyTotal = transactions
-            .filter(t => {
-                if (t.status === 'CANCELLED') return false;
-                const tDate = new Date(t.date);
-                // Robust local date comparison
-                return tDate.getDate() === d.getDate() && 
-                       tDate.getMonth() === d.getMonth() && 
-                       tDate.getFullYear() === d.getFullYear();
-            })
-            .reduce((acc, t) => acc + t.total, 0);
-
-        data.push({ label: dayLabel, value: dailyTotal });
+        dateBuckets[dateKey] = { label: dayLabel, value: 0 };
     }
+    
+    // Single iteration through all transactions
+    transactions.forEach(t => {
+        if (t.status === 'CANCELLED') return;
+        
+        const tDate = new Date(t.date);
+        const dateKey = `${tDate.getFullYear()}-${tDate.getMonth()}-${tDate.getDate()}`;
+        
+        if (dateBuckets[dateKey]) {
+            dateBuckets[dateKey].value += t.total;
+        }
+    });
+    
+    // Convert to array maintaining chronological order
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+        data.push(dateBuckets[dateKey]);
+    }
+    
     return data;
   }, [transactions]);
 

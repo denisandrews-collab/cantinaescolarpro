@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Product, Student, Transaction, SystemSettings, StudentHistoryEntry, SystemUser, Company, AppModule, CashEntry } from './types';
 import { PRODUCTS, STUDENTS, SYSTEM_USERS } from './constants';
 import { PosView } from './components/PosView';
@@ -45,12 +45,16 @@ const loadScopedState = <T,>(companyId: string, key: string, fallback: T, saniti
     return fallback;
 };
 
-const NavButton: React.FC<{ active: boolean; onClick: () => void; icon: React.ReactNode; label: string }> = ({ active, onClick, icon, label }) => (
+// Memoized NavButton to prevent unnecessary re-renders
+const NavButton = React.memo<{ active: boolean; onClick: () => void; icon: React.ReactNode; label: string }>(({ active, onClick, icon, label }) => (
     <button onClick={onClick} className={`w-full p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${active ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/30' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`} title={label}>
         {icon}
         <span className="text-[10px] font-bold text-center leading-tight">{label}</span>
     </button>
-);
+));
+
+// Display name for debugging
+NavButton.displayName = 'NavButton';
 
 // === TENANT APP ===
 const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company, onExit }) => {
@@ -69,13 +73,31 @@ const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company
     const [settings, setSettings] = useState<SystemSettings>(() => loadScopedState(company.id, 'settings', DEFAULT_SETTINGS, sanitizeSettings));
     const [cashEntries, setCashEntries] = useState<CashEntry[]>(() => loadScopedState(company.id, 'cashEntries', [], sanitizeCashEntries));
 
+    // Debounced localStorage save to improve performance
+    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    
     useEffect(() => {
-        localStorage.setItem(`${company.id}_products`, JSON.stringify(products));
-        localStorage.setItem(`${company.id}_students`, JSON.stringify(students));
-        localStorage.setItem(`${company.id}_transactions`, JSON.stringify(transactions));
-        localStorage.setItem(`${company.id}_settings`, JSON.stringify(settings));
-        localStorage.setItem(`${company.id}_systemUsers`, JSON.stringify(systemUsers));
-        localStorage.setItem(`${company.id}_cashEntries`, JSON.stringify(cashEntries));
+        // Clear any pending save
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+        }
+        
+        // Debounce localStorage writes by 500ms
+        saveTimeoutRef.current = setTimeout(() => {
+            localStorage.setItem(`${company.id}_products`, JSON.stringify(products));
+            localStorage.setItem(`${company.id}_students`, JSON.stringify(students));
+            localStorage.setItem(`${company.id}_transactions`, JSON.stringify(transactions));
+            localStorage.setItem(`${company.id}_settings`, JSON.stringify(settings));
+            localStorage.setItem(`${company.id}_systemUsers`, JSON.stringify(systemUsers));
+            localStorage.setItem(`${company.id}_cashEntries`, JSON.stringify(cashEntries));
+        }, 500);
+        
+        // Cleanup on unmount
+        return () => {
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+            }
+        };
     }, [products, students, transactions, settings, systemUsers, cashEntries, company.id]);
     
     useEffect(() => {
@@ -98,7 +120,7 @@ const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company
 
     const handleLoginSuccess = (user: SystemUser) => { setCurrentUser(user); setViewMode('ADMIN'); };
 
-    const handleImportData = (file: File) => {
+    const handleImportData = useCallback((file: File) => {
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
@@ -114,18 +136,18 @@ const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company
             } catch (err) { alert('Erro ao ler arquivo de backup.'); }
         };
         reader.readAsText(file);
-    };
+    }, [company.id]);
 
-    const handleExportData = () => {
+    const handleExportData = useCallback(() => {
         const data = { version: '2.1', companyId: company.id, date: new Date(), products, students, transactions, settings, systemUsers, cashEntries };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = `Backup_${company.name}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.json`;
         document.body.appendChild(link); link.click(); document.body.removeChild(link);
-    };
+    }, [company.id, company.name, products, students, transactions, settings, systemUsers, cashEntries]);
 
-    const handleTransactionComplete = (t: Transaction) => {
+    const handleTransactionComplete = useCallback((t: Transaction) => {
         const newTx = { ...t, userId: currentUser?.id, userName: currentUser?.name, status: 'VALID' as const };
         setTransactions(prev => [...prev, newTx]);
         setProducts(prev => prev.map(p => {
@@ -135,11 +157,11 @@ const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company
         if (t.studentId) {
             setStudents(prev => prev.map(s => s.id === t.studentId ? { ...s, balance: s.balance - t.total, points: (s.points || 0) + Math.floor(t.total), history: [{ id: t.id, date: t.date, type: 'PURCHASE', description: `Compra (${t.items.length} itens)`, value: t.total, items: t.items, balanceAfter: s.balance - t.total }, ...(s.history || [])] } : s));
         }
-    };
+    }, [currentUser?.id, currentUser?.name]);
 
-    const updateStudent = (s: Student) => setStudents(prev => prev.map(old => old.id === s.id ? s : old));
-    const addStudent = (s: Student) => setStudents(prev => [...prev, s]);
-    const deleteStudent = (id: string) => setStudents(prev => prev.filter(s => s.id !== id));
+    const updateStudent = useCallback((s: Student) => setStudents(prev => prev.map(old => old.id === s.id ? s : old)), []);
+    const addStudent = useCallback((s: Student) => setStudents(prev => [...prev, s]), []);
+    const deleteStudent = useCallback((id: string) => setStudents(prev => prev.filter(s => s.id !== id)), []);
     
     if (viewMode === 'GUARDIAN') return <GuardianPortalView students={students} onExitPortal={() => { setViewMode('LOGIN'); window.location.hash = ''; }} onUpdateStudent={updateStudent} />;
     if (viewMode === 'LOGIN') return <SystemLoginView users={systemUsers} onLogin={handleLoginSuccess} schoolName={settings.schoolName} onGoToPortal={() => company.modules.includes('PARENTS_PORTAL')} />;
