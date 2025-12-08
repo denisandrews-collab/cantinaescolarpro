@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ProductCategory, Product, CartItem, Student, Transaction, SystemSettings, CashEntry, PaymentMethod } from '../types';
 import { CategoryIcons } from '../constants';
 import { Receipt } from './Receipt';
-import { generateReceiptMessage } from '../services/geminiService';
+import { generateReceiptMessage } from '../services/genaiClient.browser';
 import { createPixCharge, PixChargeResponse } from '../services/itauService';
 
 interface PosViewProps {
