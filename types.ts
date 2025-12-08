@@ -1,4 +1,3 @@
-
 export enum ProductCategory {
   SNACK = 'Salgados',
   DRINK = 'Bebidas',
@@ -8,24 +7,23 @@ export enum ProductCategory {
 
 export interface Product {
   id: string;
-  code?: string; // Código do Produto
+  code?: string;
   name: string;
   price: number;
-  costPrice?: number; // Preço de Compra
-  stock?: number; // Quantidade em Estoque
+  costPrice?: number;
+  stock?: number;
   category: ProductCategory;
   image?: string;
-  isActive?: boolean; // Ativo/Inativo para venda
+  isActive?: boolean;
   isFavorite?: boolean;
 }
 
 export interface CartItem extends Product {
   quantity: number;
-  notes?: string; // Observação do pedido
+  notes?: string;
 }
 
 export type TransactionType = 'PURCHASE' | 'PAYMENT' | 'ADJUSTMENT' | 'REFUND' | 'EXCHANGE';
-
 export type PaymentMethod = 'MONEY' | 'ACCOUNT' | 'CREDIT' | 'DEBIT' | 'PIX' | 'MIXED';
 
 export interface StudentHistoryEntry {
@@ -34,36 +32,32 @@ export interface StudentHistoryEntry {
   type: TransactionType;
   description: string;
   value: number;
-  items?: CartItem[]; // Lista de itens comprados
-  balanceAfter?: number; // Saldo após a transação
+  items?: CartItem[];
+  balanceAfter?: number;
 }
 
 export interface Student {
   id: string;
-  code?: string; // Código do Aluno
+  code?: string;
   name: string;
-  grade: string; // Turma e.g., "3º Ano B"
-  isStaff?: boolean; // Se é funcionário
-  isActive?: boolean; // Ativo/Inativo
-  
-  // Guardian / Contact Info
+  grade: string;
+  isStaff?: boolean;
+  isActive?: boolean;
   guardianName?: string;
   guardianEmail?: string;
-  guardianPhone?: string; // Format: 5511999999999
-  guardianPassword?: string; // Senha de acesso ao portal
-
-  balance: number; // Saldo devedor ou crédito
-  points: number; // Sistema de Fidelidade
-  notes?: string; // Observações / Alergias
-
+  guardianPhone?: string;
+  guardianPassword?: string;
+  balance: number;
+  points: number;
+  notes?: string;
   history: StudentHistoryEntry[];
 }
 
 export interface CashEntry {
   id: string;
   description: string;
-  value: number; // Positive for IN, Negative for OUT usually, but we use type to distinguish
-  amount: number; // Absolute value
+  value: number;
+  amount: number;
   type: 'IN' | 'OUT';
   date: Date;
   userId?: string;
@@ -77,11 +71,11 @@ export interface Transaction {
   total: number;
   date: Date;
   aiMessage?: string;
-  status?: 'VALID' | 'CANCELLED'; // Novo campo para cancelamento
-  studentBalanceSnapshot?: number; // Saldo do aluno no momento da compra
-  userId?: string; // ID do operador que fez a venda
+  status?: 'VALID' | 'CANCELLED';
+  studentBalanceSnapshot?: number;
+  userId?: string;
   userName?: string;
-  paymentMethod?: PaymentMethod; // Método de pagamento utilizado
+  paymentMethod?: PaymentMethod;
 }
 
 export interface PrinterConfig {
@@ -91,60 +85,60 @@ export interface PrinterConfig {
   enabled: boolean;
 }
 
+export interface ItauSettings {
+    enabled: boolean;
+    clientId: string;
+    clientSecret: string;
+    pixKey: string;
+}
+
 export interface SystemSettings {
   schoolName: string;
-  taxRate: number; // Percentage
+  taxRate: number;
   kitchenPrinter: PrinterConfig;
   counterPrinter: PrinterConfig;
   printKitchenCopy: boolean;
   printCustomerCopy: boolean;
   
-  // New Configuration Sections
+  integrations?: {
+      itau?: ItauSettings;
+  };
+
   paymentMethods: {
     money: boolean;
     creditCard: boolean;
     debitCard: boolean;
     pix: boolean;
-    studentAccount: boolean; // "Debitar na Conta"
+    studentAccount: boolean;
   };
   features: {
-    allowNegativeBalance: boolean; // Permitir fiado/dívida
-    enforceStockLimit: boolean; // Bloquear venda se estoque <= 0
-    showStockAlerts: boolean; // Mostrar alertas no dashboard
-    enableLoyaltySystem: boolean; // Sistema de pontos
-    blockOverdueStudents: boolean; // Bloquear alunos inadimplentes
-    maxOverdueDays: number; // Dias tolerados de atraso
-  };
-  integrations?: {
-    itau?: {
-      enabled: boolean;
-      clientId?: string;
-      pixKey?: string;
-    };
+    allowNegativeBalance: boolean;
+    enforceStockLimit: boolean;
+    showStockAlerts: boolean;
+    enableLoyaltySystem: boolean;
+    blockOverdueStudents: boolean;
+    maxOverdueDays: number;
   };
 }
 
-// === SYSTEM ACCESS TYPES ===
 export type UserRole = 'ADMIN' | 'CASHIER';
 
 export interface SystemUser {
   id: string;
   name: string;
   login: string;
-  password?: string; // Optional for security when listing, required for update
+  password?: string;
   role: UserRole;
 }
-
-// === MULTI-TENANCY & MODULARITY ===
 
 export type AppModule = 'POS' | 'FINANCIAL' | 'INVENTORY' | 'REPORTS' | 'PARENTS_PORTAL' | 'API_INTEGRATION' | 'ACCESS_CONTROL';
 
 export interface Company {
   id: string;
   name: string;
-  document?: string; // CNPJ
+  document?: string;
   contact?: string;
   active: boolean;
-  modules: AppModule[]; // Lista de módulos que esta empresa contratou/ativou
+  modules: AppModule[];
   createdAt: string;
 }

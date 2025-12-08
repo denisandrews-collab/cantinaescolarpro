@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Product, Student, Transaction, SystemSettings, StudentHistoryEntry, SystemUser, Company, AppModule, CashEntry } from './types';
+import { Product, Student, Transaction, SystemSettings, SystemUser, Company, AppModule, CashEntry } from './types';
 import { PRODUCTS, STUDENTS, SYSTEM_USERS } from './constants';
 import { PosView } from './components/PosView';
 import { CustomersView } from './components/CustomersView';
@@ -17,7 +17,6 @@ import { SuperAdminView } from './components/SuperAdminView';
 
 type Tab = 'DASHBOARD' | 'POS' | 'CLIENTS' | 'BILLING' | 'PRODUCTS' | 'REPORTS' | 'EXCHANGE' | 'ACCESS' | 'APIS' | 'SETTINGS';
 
-// === CONFIGURAÇÕES PADRÃO ===
 const DEFAULT_SETTINGS: SystemSettings = {
     schoolName: 'Cantina Escolar',
     taxRate: 0,
@@ -29,14 +28,13 @@ const DEFAULT_SETTINGS: SystemSettings = {
     features: { allowNegativeBalance: true, enforceStockLimit: false, showStockAlerts: true, enableLoyaltySystem: true, blockOverdueStudents: false, maxOverdueDays: 30 }
 };
 
-// ... (Sanitizers mantidos) ...
-const sanitizeStudents = (data: any[]): Student[] => { if (!Array.isArray(data)) return []; return data.map(s => ({ ...s, id: s.id || Date.now().toString(), name: s.name || 'Sem Nome', history: Array.isArray(s.history) ? s.history.map((h: any) => ({ ...h, date: new Date(h.date), items: h.items || [] })) : [], balance: typeof s.balance === 'number' ? s.balance : 0, points: typeof s.points === 'number' ? s.points : 0, isActive: s.isActive ?? true })); };
-const sanitizeProducts = (data: any[]): Product[] => { if (!Array.isArray(data)) return []; return data.map(p => ({ ...p, stock: typeof p.stock === 'number' ? p.stock : 0, costPrice: typeof p.costPrice === 'number' ? p.costPrice : 0, isActive: p.isActive ?? true, isFavorite: p.isFavorite ?? false })); };
-const sanitizeTransactions = (data: any[]): Transaction[] => { if (!Array.isArray(data)) return []; return data.map(t => ({ ...t, date: new Date(t.date), status: t.status || 'VALID', items: t.items || [] })); };
-const sanitizeSystemUsers = (data: any[]): SystemUser[] => { if (!Array.isArray(data)) return []; return data.map(u => ({ ...u, role: u.role || 'CASHIER' })); };
-const sanitizeSettings = (data: any): SystemSettings => { if (!data || typeof data !== 'object') return DEFAULT_SETTINGS; return { ...DEFAULT_SETTINGS, ...data, features: { ...DEFAULT_SETTINGS.features, ...(data.features || {}) }, paymentMethods: { ...DEFAULT_SETTINGS.paymentMethods, ...(data.paymentMethods || {}) }, kitchenPrinter: { ...DEFAULT_SETTINGS.kitchenPrinter, ...(data.kitchenPrinter || {}) }, counterPrinter: { ...DEFAULT_SETTINGS.counterPrinter, ...(data.counterPrinter || {}) } }; };
-const sanitizeCashEntries = (data: any[]): CashEntry[] => { if (!Array.isArray(data)) return []; return data.map(c => ({ ...c, date: new Date(c.date) })); };
-const sanitizeCompanies = (data: any[]): Company[] => { if (!Array.isArray(data)) return []; return data.map(c => ({ ...c, modules: Array.isArray(c.modules) ? c.modules : ['POS', 'FINANCIAL', 'INVENTORY', 'REPORTS'] })); };
+const sanitizeStudents = (data: any[]): Student[] => Array.isArray(data) ? data.map(s => ({ ...s, id: s.id || Date.now().toString(), name: s.name || 'Sem Nome', history: Array.isArray(s.history) ? s.history.map((h: any) => ({ ...h, date: new Date(h.date), items: h.items || [] })) : [], balance: typeof s.balance === 'number' ? s.balance : 0, points: typeof s.points === 'number' ? s.points : 0, isActive: s.isActive ?? true })) : [];
+const sanitizeProducts = (data: any[]): Product[] => Array.isArray(data) ? data.map(p => ({ ...p, stock: typeof p.stock === 'number' ? p.stock : 0, costPrice: typeof p.costPrice === 'number' ? p.costPrice : 0, isActive: p.isActive ?? true, isFavorite: p.isFavorite ?? false })) : [];
+const sanitizeTransactions = (data: any[]): Transaction[] => Array.isArray(data) ? data.map(t => ({ ...t, date: new Date(t.date), status: t.status || 'VALID', items: t.items || [] })) : [];
+const sanitizeSystemUsers = (data: any[]): SystemUser[] => Array.isArray(data) ? data.map(u => ({ ...u, role: u.role || 'CASHIER' })) : [];
+const sanitizeCashEntries = (data: any[]): CashEntry[] => Array.isArray(data) ? data.map(c => ({ ...c, date: new Date(c.date) })) : [];
+const sanitizeCompanies = (data: any[]): Company[] => Array.isArray(data) ? data.map(c => ({ ...c, modules: Array.isArray(c.modules) ? c.modules : ['POS', 'FINANCIAL', 'INVENTORY', 'REPORTS'] })) : [];
+const sanitizeSettings = (data: any): SystemSettings => (!data || typeof data !== 'object') ? DEFAULT_SETTINGS : { ...DEFAULT_SETTINGS, ...data, features: { ...DEFAULT_SETTINGS.features, ...(data.features || {}) }, paymentMethods: { ...DEFAULT_SETTINGS.paymentMethods, ...(data.paymentMethods || {}) }, kitchenPrinter: { ...DEFAULT_SETTINGS.kitchenPrinter, ...(data.kitchenPrinter || {}) }, counterPrinter: { ...DEFAULT_SETTINGS.counterPrinter, ...(data.counterPrinter || {}) } };
 
 const loadScopedState = <T,>(companyId: string, key: string, fallback: T, sanitizer?: (data: any) => T): T => {
     const scopedKey = `${companyId}_${key}`;
@@ -52,9 +50,7 @@ const NavButton: React.FC<{ active: boolean; onClick: () => void; icon: React.Re
     </button>
 );
 
-// === TENANT APP ===
 const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company, onExit }) => {
-    // ... (Tenant Logic kept the same)
     const [currentUser, setCurrentUser] = useState<SystemUser | null>(() => {
         const saved = localStorage.getItem(`${company.id}_active_session`);
         return saved ? JSON.parse(saved) : null;
@@ -70,20 +66,24 @@ const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company
     const [settings, setSettings] = useState<SystemSettings>(() => loadScopedState(company.id, 'settings', DEFAULT_SETTINGS, sanitizeSettings));
     const [cashEntries, setCashEntries] = useState<CashEntry[]>(() => loadScopedState(company.id, 'cashEntries', [], sanitizeCashEntries));
 
-    useEffect(() => { localStorage.setItem(`${company.id}_products`, JSON.stringify(products)); }, [products, company.id]);
-    useEffect(() => { localStorage.setItem(`${company.id}_students`, JSON.stringify(students)); }, [students, company.id]);
-    useEffect(() => { localStorage.setItem(`${company.id}_transactions`, JSON.stringify(transactions)); }, [transactions, company.id]);
-    useEffect(() => { localStorage.setItem(`${company.id}_settings`, JSON.stringify(settings)); }, [settings, company.id]);
-    useEffect(() => { localStorage.setItem(`${company.id}_systemUsers`, JSON.stringify(systemUsers)); }, [systemUsers, company.id]);
-    useEffect(() => { localStorage.setItem(`${company.id}_cashEntries`, JSON.stringify(cashEntries)); }, [cashEntries, company.id]);
-    useEffect(() => { if (currentUser) localStorage.setItem(`${company.id}_active_session`, JSON.stringify(currentUser)); else localStorage.removeItem(`${company.id}_active_session`); }, [currentUser, company.id]);
+    useEffect(() => {
+        localStorage.setItem(`${company.id}_products`, JSON.stringify(products));
+        localStorage.setItem(`${company.id}_students`, JSON.stringify(students));
+        localStorage.setItem(`${company.id}_transactions`, JSON.stringify(transactions));
+        localStorage.setItem(`${company.id}_settings`, JSON.stringify(settings));
+        localStorage.setItem(`${company.id}_systemUsers`, JSON.stringify(systemUsers));
+        localStorage.setItem(`${company.id}_cashEntries`, JSON.stringify(cashEntries));
+    }, [products, students, transactions, settings, systemUsers, cashEntries, company.id]);
+    
+    useEffect(() => {
+        if (currentUser) localStorage.setItem(`${company.id}_active_session`, JSON.stringify(currentUser));
+        else localStorage.removeItem(`${company.id}_active_session`);
+    }, [currentUser, company.id]);
 
     useEffect(() => {
         const checkHash = () => {
             if (window.location.href.includes('portal') || window.location.hash.includes('portal')) {
-                if (company.modules.includes('PARENTS_PORTAL')) {
-                    setViewMode('GUARDIAN');
-                }
+                if (company.modules.includes('PARENTS_PORTAL')) setViewMode('GUARDIAN');
             }
         };
         checkHash();
@@ -104,9 +104,9 @@ const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company
                 if (json.settings) localStorage.setItem(`${company.id}_settings`, JSON.stringify(sanitizeSettings(json.settings)));
                 if (json.systemUsers) localStorage.setItem(`${company.id}_systemUsers`, JSON.stringify(sanitizeSystemUsers(json.systemUsers)));
                 if (json.cashEntries) localStorage.setItem(`${company.id}_cashEntries`, JSON.stringify(sanitizeCashEntries(json.cashEntries)));
-                alert('Backup restaurado com sucesso! O sistema será reiniciado.');
+                alert('Backup restaurado! O sistema será reiniciado.');
                 window.location.reload();
-            } catch (err) { alert('Erro ao ler arquivo de backup.'); }
+            } catch (err) { alert('Erro ao ler backup.'); }
         };
         reader.readAsText(file);
     };
@@ -144,18 +144,12 @@ const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company
     return (
         <div className="flex h-screen bg-gray-100 text-gray-900 font-sans">
             <aside className="w-20 bg-gray-900 flex flex-col items-center py-6 shrink-0 z-20 print:hidden">
-                {/* CONDITIONAL BACK BUTTON - Styled same as nav buttons, removed red color */}
                 {hasModule('ACCESS_CONTROL') && (
-                    <button 
-                        onClick={onExit} 
-                        className="mb-4 w-full p-3 rounded-xl flex flex-col items-center gap-1 transition-all text-gray-400 hover:text-white hover:bg-gray-800" 
-                        title="Sair da Empresa"
-                    >
+                    <button onClick={onExit} className="mb-4 w-full p-3 rounded-xl flex flex-col items-center gap-1 transition-all text-gray-400 hover:text-white hover:bg-gray-800" title="Sair da Empresa">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
                         <span className="text-[10px] font-bold text-center leading-tight">VOLTAR</span>
                     </button>
                 )}
-                
                 <nav className="flex flex-col gap-4 w-full px-2 flex-1 overflow-y-auto custom-scrollbar overflow-x-hidden">
                     <NavButton active={activeTab === 'DASHBOARD'} onClick={() => setActiveTab('DASHBOARD')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>} label="Dashboard" />
                     {hasModule('POS') && <NavButton active={activeTab === 'POS'} onClick={() => setActiveTab('POS')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>} label="POS" />}
@@ -167,8 +161,6 @@ const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company
                     <div className="h-px bg-gray-700 w-full my-2"></div>
                     {hasModule('ACCESS_CONTROL') && <NavButton active={activeTab === 'ACCESS'} onClick={() => setActiveTab('ACCESS')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>} label="Acesso" />}
                     {hasModule('API_INTEGRATION') && <NavButton active={activeTab === 'APIS'} onClick={() => setActiveTab('APIS')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>} label="APIs" />}
-                    
-                    {/* UPDATED SETTINGS ICON (GEAR/SLIDERS) */}
                     <NavButton active={activeTab === 'SETTINGS'} onClick={() => setActiveTab('SETTINGS')} icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>} label="Configurações" />
                 </nav>
             </aside>
@@ -182,32 +174,10 @@ const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company
                     onUpdateStudent={updateStudent} 
                     onDeleteStudent={deleteStudent} 
                     onReceivePayment={(id, amt, desc) => {
-                        setStudents(prev => prev.map(s => s.id === id ? { 
-                            ...s, 
-                            balance: s.balance + amt,
-                            history: [{ 
-                                id: Date.now().toString(),
-                                date: new Date(),
-                                type: 'PAYMENT',
-                                description: desc || 'Pagamento',
-                                value: amt,
-                                balanceAfter: s.balance + amt
-                            }, ...(s.history || [])]
-                        } : s));
+                        setStudents(prev => prev.map(s => s.id === id ? { ...s, balance: s.balance + amt, history: [...s.history, { id: Date.now().toString(), date: new Date(), type: 'PAYMENT', description: desc || 'Pagamento', value: amt, balanceAfter: s.balance + amt }, ...(s.history || [])] } : s));
                     }} 
                     onRefundStudent={(id, amt, reason) => {
-                         setStudents(prev => prev.map(s => s.id === id ? { 
-                            ...s, 
-                            balance: s.balance - amt,
-                            history: [{ 
-                                id: Date.now().toString(),
-                                date: new Date(),
-                                type: 'REFUND',
-                                description: reason || 'Estorno',
-                                value: amt,
-                                balanceAfter: s.balance - amt
-                            }, ...(s.history || [])]
-                        } : s));
+                         setStudents(prev => prev.map(s => s.id === id ? { ...s, balance: s.balance - amt, history: [{ id: Date.now().toString(), date: new Date(), type: 'REFUND', description: reason || 'Estorno', value: amt, balanceAfter: s.balance - amt }, ...(s.history || [])] } : s));
                     }}
                     onImportStudents={(s) => setStudents(prev => [...prev, ...s])}
                     initiateNewStudent={triggerNewStudent}
@@ -227,7 +197,6 @@ const TenantApp: React.FC<{ company: Company, onExit: () => void }> = ({ company
 
 // === ROOT APP ===
 const App = () => {
-    // Estado Global das Empresas (Super Admin)
     const [companies, setCompanies] = useState<Company[]>(() => {
         const saved = localStorage.getItem('companies');
         return saved ? sanitizeCompanies(JSON.parse(saved)) : [];
@@ -243,20 +212,13 @@ const App = () => {
     useEffect(() => { if (companies.length > 0) localStorage.setItem('companies', JSON.stringify(companies)); }, [companies]);
     useEffect(() => { if (selectedCompanyId) localStorage.setItem('last_selected_company', selectedCompanyId); else localStorage.removeItem('last_selected_company'); }, [selectedCompanyId]);
 
-    // Hash check with Admin support
     useEffect(() => {
         const checkHash = () => {
             const url = window.location.href.toLowerCase();
             const hash = window.location.hash.toLowerCase();
-            
-            if (url.includes('portal') || hash.includes('portal')) {
-                setIsPortalMode(true);
-            } else if (hash.includes('admin')) {
-                setIsSuperAdminMode(true);
-                setSelectedCompanyId(null);
-            } else {
-                setIsPortalMode(false);
-            }
+            if (url.includes('portal') || hash.includes('portal')) setIsPortalMode(true);
+            else if (hash.includes('admin')) { setIsSuperAdminMode(true); setSelectedCompanyId(null); }
+            else setIsPortalMode(false);
         };
         checkHash();
         window.addEventListener('hashchange', checkHash);
