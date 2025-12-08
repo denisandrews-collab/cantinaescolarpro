@@ -283,6 +283,140 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
       setExpandedTxId(prev => prev === txId ? null : txId);
   };
 
+  // Helper function to render paginated student history
+  const renderStudentHistory = (student: Student) => {
+      const currentPage = historyPage[student.id] || 0;
+      const totalPages = Math.ceil(student.history.length / HISTORY_PAGE_SIZE);
+      const startIdx = currentPage * HISTORY_PAGE_SIZE;
+      const endIdx = startIdx + HISTORY_PAGE_SIZE;
+      const paginatedHistory = student.history.slice(startIdx, endIdx);
+      
+      return (
+          <tr className="bg-gray-50 shadow-inner">
+              <td colSpan={9} className="p-4">
+                  <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                      <div className="px-4 py-2 bg-gray-100 border-b border-gray-200 flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-gray-500 uppercase">
+                              Histórico Financeiro - {student.name} ({student.history.length} registros)
+                          </h4>
+                          {totalPages > 1 && (
+                              <div className="flex items-center gap-2">
+                                  <button
+                                      onClick={() => setHistoryPage(prev => ({...prev, [student.id]: Math.max(0, currentPage - 1)}))}
+                                      disabled={currentPage === 0}
+                                      className="px-2 py-1 bg-white rounded text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-200"
+                                  >
+                                      ←
+                                  </button>
+                                  <span className="text-xs font-medium text-gray-600">
+                                      Página {currentPage + 1} de {totalPages}
+                                  </span>
+                                  <button
+                                      onClick={() => setHistoryPage(prev => ({...prev, [student.id]: Math.min(totalPages - 1, currentPage + 1)}))}
+                                      disabled={currentPage >= totalPages - 1}
+                                      className="px-2 py-1 bg-white rounded text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-200"
+                                  >
+                                      →
+                                  </button>
+                              </div>
+                          )}
+                      </div>
+                      {(!student.history || student.history.length === 0) ? (
+                          <p className="p-4 text-center text-sm text-gray-400">Nenhum registro encontrado.</p>
+                      ) : (
+                          <table className="w-full text-sm">
+                              <thead>
+                                  <tr className="text-gray-500 border-b border-gray-100">
+                                      <th className="px-4 py-2 text-left font-medium">Data</th>
+                                      <th className="px-4 py-2 text-left font-medium">Tipo</th>
+                                      <th className="px-4 py-2 text-left font-medium">Descrição</th>
+                                      <th className="px-4 py-2 text-right font-medium">Saldo Após</th>
+                                      <th className="px-4 py-2 text-right font-medium">Valor</th>
+                                      <th className="px-4 py-2 text-center font-medium">Detalhes</th>
+                                  </tr>
+                              </thead>
+                              <tbody>
+                                  {paginatedHistory.map(entry => (
+                                      <React.Fragment key={entry.id}>
+                                      <tr className={`border-b border-gray-50 last:border-0 hover:bg-gray-50 ${expandedTxId === entry.id ? 'bg-blue-50' : ''}`}>
+                                          <td className="px-4 py-2 text-gray-600 whitespace-nowrap">{new Date(entry.date).toLocaleString('pt-BR')}</td>
+                                          <td className="px-4 py-2">
+                                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                                  entry.type === 'PAYMENT' ? 'bg-green-100 text-green-700' : 
+                                                  entry.type === 'REFUND' ? 'bg-orange-100 text-orange-700' :
+                                                  'bg-red-100 text-red-700'
+                                              }`}>
+                                                  {entry.type === 'PAYMENT' ? 'Pagamento' : 
+                                                  entry.type === 'REFUND' ? 'Estorno' :
+                                                  'Compra'}
+                                              </span>
+                                          </td>
+                                          <td className="px-4 py-2 text-gray-800">{entry.description}</td>
+                                          <td className="px-4 py-2 text-right text-gray-500 font-mono text-xs">
+                                              {entry.balanceAfter !== undefined ? 
+                                                  (entry.balanceAfter < 0 ? `Deve R$ ${Math.abs(entry.balanceAfter).toFixed(2)}` : `Créd. R$ ${entry.balanceAfter.toFixed(2)}`)
+                                                  : '-'
+                                              }
+                                          </td>
+                                          <td className={`px-4 py-2 text-right font-bold ${
+                                              entry.type === 'PAYMENT' || entry.type === 'REFUND' ? 'text-green-600' : 'text-red-500'
+                                          }`}>
+                                              {entry.type === 'PAYMENT' || entry.type === 'REFUND' ? '+' : '-'} R$ {entry.value.toFixed(2)}
+                                          </td>
+                                          <td className="px-4 py-2 text-center">
+                                              {entry.items && entry.items.length > 0 && (
+                                                  <button 
+                                                      onClick={() => toggleTxDetails(entry.id)}
+                                                      className="text-blue-600 hover:text-blue-800 text-xs font-bold flex items-center justify-center gap-1 mx-auto"
+                                                  >
+                                                      {expandedTxId === entry.id ? 'Ocultar' : 'Ver Itens'}
+                                                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${expandedTxId === entry.id ? 'rotate-180' : ''}`}><polyline points="6 9 12 15 18 9"/></svg>
+                                                  </button>
+                                              )}
+                                          </td>
+                                      </tr>
+                                      
+                                      {/* NESTED ITEMS ROW */}
+                                      {expandedTxId === entry.id && entry.items && (
+                                          <tr className="bg-blue-50/50">
+                                              <td colSpan={6} className="p-0">
+                                                  <div className="mx-4 mb-2 p-3 bg-white border border-blue-100 rounded-lg shadow-sm">
+                                                      <p className="text-xs font-bold text-gray-500 uppercase mb-2">Itens Consumidos:</p>
+                                                      <table className="w-full text-xs">
+                                                          <thead>
+                                                              <tr className="text-gray-400 border-b border-gray-100">
+                                                                  <th className="text-left py-1">Produto</th>
+                                                                  <th className="text-right py-1">Qtd</th>
+                                                                  <th className="text-right py-1">Unitário</th>
+                                                                  <th className="text-right py-1">Total</th>
+                                                              </tr>
+                                                          </thead>
+                                                          <tbody>
+                                                              {entry.items.map((item, idx) => (
+                                                                  <tr key={idx} className="border-b border-gray-50 last:border-0">
+                                                                      <td className="py-1.5 font-medium text-gray-800">{item.name}</td>
+                                                                      <td className="py-1.5 text-right text-gray-600">{item.quantity}</td>
+                                                                      <td className="py-1.5 text-right text-gray-600">R$ {item.price.toFixed(2)}</td>
+                                                                      <td className="py-1.5 text-right font-bold text-gray-800">R$ {(item.price * item.quantity).toFixed(2)}</td>
+                                                                  </tr>
+                                                              ))}
+                                                          </tbody>
+                                                      </table>
+                                                  </div>
+                                              </td>
+                                          </tr>
+                                      )}
+                                      </React.Fragment>
+                                  ))}
+                              </tbody>
+                          </table>
+                      )}
+                  </div>
+              </td>
+          </tr>
+      );
+  };
+
   // Import/Export Logic
   const handleExportCSV = () => {
     const headers = "ID,Código,Nome,Turma,Responsável,Email Resp,Telefone Resp,Saldo,Ativo\n";
@@ -520,138 +654,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                             </tr>
                             
                             {/* EXPANDED HISTORY ROW */}
-                            {expandedStudentId === student.id && (() => {
-                                const currentPage = historyPage[student.id] || 0;
-                                const totalPages = Math.ceil(student.history.length / HISTORY_PAGE_SIZE);
-                                const startIdx = currentPage * HISTORY_PAGE_SIZE;
-                                const endIdx = startIdx + HISTORY_PAGE_SIZE;
-                                const paginatedHistory = student.history.slice(startIdx, endIdx);
-                                
-                                return (
-                                <tr className="bg-gray-50 shadow-inner">
-                                    <td colSpan={9} className="p-4">
-                                        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                                            <div className="px-4 py-2 bg-gray-100 border-b border-gray-200 flex items-center justify-between">
-                                                <h4 className="text-xs font-bold text-gray-500 uppercase">
-                                                    Histórico Financeiro - {student.name} ({student.history.length} registros)
-                                                </h4>
-                                                {totalPages > 1 && (
-                                                    <div className="flex items-center gap-2">
-                                                        <button
-                                                            onClick={() => setHistoryPage(prev => ({...prev, [student.id]: Math.max(0, currentPage - 1)}))}
-                                                            disabled={currentPage === 0}
-                                                            className="px-2 py-1 bg-white rounded text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-200"
-                                                        >
-                                                            ←
-                                                        </button>
-                                                        <span className="text-xs font-medium text-gray-600">
-                                                            Página {currentPage + 1} de {totalPages}
-                                                        </span>
-                                                        <button
-                                                            onClick={() => setHistoryPage(prev => ({...prev, [student.id]: Math.min(totalPages - 1, currentPage + 1)}))}
-                                                            disabled={currentPage >= totalPages - 1}
-                                                            className="px-2 py-1 bg-white rounded text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-200"
-                                                        >
-                                                            →
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            {(!student.history || student.history.length === 0) ? (
-                                                <p className="p-4 text-center text-sm text-gray-400">Nenhum registro encontrado.</p>
-                                            ) : (
-                                                <table className="w-full text-sm">
-                                                    <thead>
-                                                        <tr className="text-gray-500 border-b border-gray-100">
-                                                            <th className="px-4 py-2 text-left font-medium">Data</th>
-                                                            <th className="px-4 py-2 text-left font-medium">Tipo</th>
-                                                            <th className="px-4 py-2 text-left font-medium">Descrição</th>
-                                                            <th className="px-4 py-2 text-right font-medium">Saldo Após</th>
-                                                            <th className="px-4 py-2 text-right font-medium">Valor</th>
-                                                            <th className="px-4 py-2 text-center font-medium">Detalhes</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {paginatedHistory.map(entry => (
-                                                            <React.Fragment key={entry.id}>
-                                                            <tr className={`border-b border-gray-50 last:border-0 hover:bg-gray-50 ${expandedTxId === entry.id ? 'bg-blue-50' : ''}`}>
-                                                                <td className="px-4 py-2 text-gray-600 whitespace-nowrap">{new Date(entry.date).toLocaleString('pt-BR')}</td>
-                                                                <td className="px-4 py-2">
-                                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                                                        entry.type === 'PAYMENT' ? 'bg-green-100 text-green-700' : 
-                                                                        entry.type === 'REFUND' ? 'bg-orange-100 text-orange-700' :
-                                                                        'bg-red-100 text-red-700'
-                                                                    }`}>
-                                                                        {entry.type === 'PAYMENT' ? 'Pagamento' : 
-                                                                        entry.type === 'REFUND' ? 'Estorno' :
-                                                                        'Compra'}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-4 py-2 text-gray-800">{entry.description}</td>
-                                                                <td className="px-4 py-2 text-right text-gray-500 font-mono text-xs">
-                                                                    {entry.balanceAfter !== undefined ? 
-                                                                        (entry.balanceAfter < 0 ? `Deve R$ ${Math.abs(entry.balanceAfter).toFixed(2)}` : `Créd. R$ ${entry.balanceAfter.toFixed(2)}`)
-                                                                        : '-'
-                                                                    }
-                                                                </td>
-                                                                <td className={`px-4 py-2 text-right font-bold ${
-                                                                    entry.type === 'PAYMENT' || entry.type === 'REFUND' ? 'text-green-600' : 'text-red-500'
-                                                                }`}>
-                                                                    {entry.type === 'PAYMENT' || entry.type === 'REFUND' ? '+' : '-'} R$ {entry.value.toFixed(2)}
-                                                                </td>
-                                                                <td className="px-4 py-2 text-center">
-                                                                    {entry.items && entry.items.length > 0 && (
-                                                                        <button 
-                                                                            onClick={() => toggleTxDetails(entry.id)}
-                                                                            className="text-blue-600 hover:text-blue-800 text-xs font-bold flex items-center justify-center gap-1 mx-auto"
-                                                                        >
-                                                                            {expandedTxId === entry.id ? 'Ocultar' : 'Ver Itens'}
-                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${expandedTxId === entry.id ? 'rotate-180' : ''}`}><polyline points="6 9 12 15 18 9"/></svg>
-                                                                        </button>
-                                                                    )}
-                                                                </td>
-                                                            </tr>
-                                                            
-                                                            {/* NESTED ITEMS ROW */}
-                                                            {expandedTxId === entry.id && entry.items && (
-                                                                <tr className="bg-blue-50/50">
-                                                                    <td colSpan={6} className="p-0">
-                                                                        <div className="mx-4 mb-2 p-3 bg-white border border-blue-100 rounded-lg shadow-sm">
-                                                                            <p className="text-xs font-bold text-gray-500 uppercase mb-2">Itens Consumidos:</p>
-                                                                            <table className="w-full text-xs">
-                                                                                <thead>
-                                                                                    <tr className="text-gray-400 border-b border-gray-100">
-                                                                                        <th className="text-left py-1">Produto</th>
-                                                                                        <th className="text-right py-1">Qtd</th>
-                                                                                        <th className="text-right py-1">Unitário</th>
-                                                                                        <th className="text-right py-1">Total</th>
-                                                                                    </tr>
-                                                                                </thead>
-                                                                                <tbody>
-                                                                                    {entry.items.map((item, idx) => (
-                                                                                        <tr key={idx} className="border-b border-gray-50 last:border-0">
-                                                                                            <td className="py-1.5 font-medium text-gray-800">{item.name}</td>
-                                                                                            <td className="py-1.5 text-right text-gray-600">{item.quantity}</td>
-                                                                                            <td className="py-1.5 text-right text-gray-600">R$ {item.price.toFixed(2)}</td>
-                                                                                            <td className="py-1.5 text-right font-bold text-gray-800">R$ {(item.price * item.quantity).toFixed(2)}</td>
-                                                                                        </tr>
-                                                                                    ))}
-                                                                                </tbody>
-                                                                            </table>
-                                                                        </div>
-                                                                    </td>
-                                                                </tr>
-                                                            )}
-                                                            </React.Fragment>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                                );
-                            })()}
+                            {expandedStudentId === student.id && renderStudentHistory(student)}
                         </React.Fragment>
                     );
                 })
