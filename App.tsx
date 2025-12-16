@@ -34,7 +34,66 @@ const sanitizeStudents = (data: any[]): Student[] => { if (!Array.isArray(data))
 const sanitizeProducts = (data: any[]): Product[] => { if (!Array.isArray(data)) return []; return data.map(p => ({ ...p, stock: typeof p.stock === 'number' ? p.stock : 0, costPrice: typeof p.costPrice === 'number' ? p.costPrice : 0, isActive: p.isActive ?? true, isFavorite: p.isFavorite ?? false })); };
 const sanitizeTransactions = (data: any[]): Transaction[] => { if (!Array.isArray(data)) return []; return data.map(t => ({ ...t, date: new Date(t.date), status: t.status || 'VALID', items: t.items || [] })); };
 const sanitizeSystemUsers = (data: any[]): SystemUser[] => { if (!Array.isArray(data)) return []; return data.map(u => ({ ...u, role: u.role || 'CASHIER' })); };
-const sanitizeSettings = (data: any): SystemSettings => { if (!data || typeof data !== 'object') return DEFAULT_SETTINGS; return { ...DEFAULT_SETTINGS, ...data, features: { ...DEFAULT_SETTINGS.features, ...(data.features || {}) }, paymentMethods: { ...DEFAULT_SETTINGS.paymentMethods, ...(data.paymentMethods || {}) }, kitchenPrinter: { ...DEFAULT_SETTINGS.kitchenPrinter, ...(data.kitchenPrinter || {}) }, counterPrinter: { ...DEFAULT_SETTINGS.counterPrinter, ...(data.counterPrinter || {}) } }; };
+/**
+ * Helper para verificar se um valor é um objeto válido (não array, não null)
+ */
+const isValidObject = (value: any): boolean => {
+    return value && typeof value === 'object' && !Array.isArray(value);
+};
+
+/**
+ * Sanitiza configurações do sistema de forma segura
+ * - Trata valores falsy (undefined, null, '') retornando configurações padrão
+ * - Faz parse seguro de strings JSON, retornando configurações padrão em caso de erro
+ * - Retorna deep clone para objetos (não muta entrada)
+ * - Converte tipos primitivos (number, boolean) para configurações padrão
+ */
+const sanitizeSettings = (data: any): SystemSettings => {
+    // Trata valores falsy - retorna configurações padrão
+    if (!data) return { ...DEFAULT_SETTINGS };
+    
+    // Se for string, tenta fazer parse JSON de forma segura (apenas uma vez, sem recursão)
+    if (typeof data === 'string') {
+        try {
+            const parsed = JSON.parse(data);
+            // Valida que o resultado do parse é um objeto válido antes de processar
+            // Evita recursão infinita ao não chamar sanitizeSettings recursivamente
+            if (!isValidObject(parsed)) {
+                return { ...DEFAULT_SETTINGS };
+            }
+            // Processa o objeto parseado inline (sem recursão)
+            data = parsed;
+        } catch (e) {
+            // Parse falhou, retorna configurações padrão
+            return { ...DEFAULT_SETTINGS };
+        }
+    }
+    
+    // Consolida validação usando isValidObject
+    if (!isValidObject(data)) return { ...DEFAULT_SETTINGS };
+    
+    // Deep clone do objeto sanitizado - não muta o original
+    return {
+        ...DEFAULT_SETTINGS,
+        ...data,
+        features: {
+            ...DEFAULT_SETTINGS.features,
+            ...(isValidObject(data.features) ? data.features : {})
+        },
+        paymentMethods: {
+            ...DEFAULT_SETTINGS.paymentMethods,
+            ...(isValidObject(data.paymentMethods) ? data.paymentMethods : {})
+        },
+        kitchenPrinter: {
+            ...DEFAULT_SETTINGS.kitchenPrinter,
+            ...(isValidObject(data.kitchenPrinter) ? data.kitchenPrinter : {})
+        },
+        counterPrinter: {
+            ...DEFAULT_SETTINGS.counterPrinter,
+            ...(isValidObject(data.counterPrinter) ? data.counterPrinter : {})
+        }
+    };
+};
 const sanitizeCashEntries = (data: any[]): CashEntry[] => { if (!Array.isArray(data)) return []; return data.map(c => ({ ...c, date: new Date(c.date) })); };
 const sanitizeCompanies = (data: any[]): Company[] => { if (!Array.isArray(data)) return []; return data.map(c => ({ ...c, modules: Array.isArray(c.modules) ? c.modules : ['POS', 'FINANCIAL', 'INVENTORY', 'REPORTS'] })); };
 
