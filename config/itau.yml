@@ -1,0 +1,18 @@
+itau:
+  # Endpoint base da API do Itaú. Ex.: https://api.itau.com.br
+  api_url: "${ITAU_API_URL}"
+  # Client ID fornecido pelo Itaú
+  client_id: "${ITAU_CLIENT_ID}"
+  # Client Secret fornecido pelo Itaú
+  client_secret: "${ITAU_CLIENT_SECRET}"
+  # Identificador da loja/estabelecimento (quando aplicável)
+  merchant_id: "${ITAU_MERCHANT_ID}"
+  # Caminho local para o certificado/PEM se necessário para autenticação mTLS
+  cert_path: "${ITAU_CERT_PATH}"
+  # Senha do arquivo PEM, se houver
+  pem_password: "${ITAU_PEM_PASSWORD}"
+  pix:
+    # Chave PIX da conta de recebimento (opcional)
+    key: "${ITAU_PIX_KEY}"
+
+# Este arquivo usa placeholders para carregar valores via variáveis de ambiente no runtime.
