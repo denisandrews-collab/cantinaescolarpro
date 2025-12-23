@@ -106,8 +106,8 @@ export const BillingView: React.FC<BillingViewProps> = ({ students }) => {
       if (selectedIds.size === debtStudents.length && debtStudents.length > 0) {
           setSelectedIds(new Set());
       } else {
-          const allIds = new Set(debtStudents.map(s => s.id));
-          setSelectedIds(allIds);
+          const allStudentIds = new Set(debtStudents.map(student => student.id));
+          setSelectedIds(allStudentIds);
       }
   };
 
@@ -128,16 +128,16 @@ export const BillingView: React.FC<BillingViewProps> = ({ students }) => {
       const amount = Math.abs(student.balance).toFixed(2);
       let details = "";
 
-      let relevantHistory = (student.history || []).filter(h => h.type === 'PURCHASE' || h.type === 'REFUND');
+      let relevantHistory = (student.history || []).filter(historyEntry => historyEntry.type === 'PURCHASE' || historyEntry.type === 'REFUND');
 
       if (appliedFilter.start || appliedFilter.end) {
-          relevantHistory = relevantHistory.filter(h => {
-              const tDate = new Date(h.date);
-              const tDateStr = tDate.toISOString().split('T')[0];
+          relevantHistory = relevantHistory.filter(historyEntry => {
+              const transactionDate = new Date(historyEntry.date);
+              const transactionDateString = transactionDate.toISOString().split('T')[0];
               let afterStart = true;
               let beforeEnd = true;
-              if (appliedFilter.start) afterStart = tDateStr >= appliedFilter.start;
-              if (appliedFilter.end) beforeEnd = tDateStr <= appliedFilter.end;
+              if (appliedFilter.start) afterStart = transactionDateString >= appliedFilter.start;
+              if (appliedFilter.end) beforeEnd = transactionDateString <= appliedFilter.end;
               return afterStart && beforeEnd;
           });
       } else {
@@ -146,11 +146,11 @@ export const BillingView: React.FC<BillingViewProps> = ({ students }) => {
 
       if (relevantHistory.length > 0) {
           details = "\n\n*Extrato Recente:*\n";
-          relevantHistory.forEach(h => {
-              const date = new Date(h.date).toLocaleDateString('pt-BR');
-              const itemNames = h.items ? h.items.map(i => i.name).join(', ') : h.description;
+          relevantHistory.forEach(historyEntry => {
+              const date = new Date(historyEntry.date).toLocaleDateString('pt-BR');
+              const itemNames = historyEntry.items ? historyEntry.items.map(item => item.name).join(', ') : historyEntry.description;
               const displayItems = itemNames.length > 30 ? itemNames.substring(0, 27) + '...' : itemNames;
-              details += `- ${date}: ${displayItems} (R$ ${h.value.toFixed(2)})\n`;
+              details += `- ${date}: ${displayItems} (R$ ${historyEntry.value.toFixed(2)})\n`;
           });
           if (!appliedFilter.start && !appliedFilter.end && student.history.length > 5) {
               details += "...ver mais no balcão.\n";
@@ -369,7 +369,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ students }) => {
                   </div>
 
                   <div className="flex-1 overflow-auto p-4 space-y-2 bg-gray-50">
-                      {debtStudents.filter(s => selectedIds.has(s.id)).map((student, idx) => {
+                      {debtStudents.filter(student => selectedIds.has(student.id)).map((student, studentIndex) => {
                           const isSent = sentIds.has(student.id);
                           const hasContact = batchChannel === 'WHATSAPP' ? !!student.guardianPhone : !!student.guardianEmail;
                           const link = batchChannel === 'WHATSAPP' ? getWhatsAppLink(student) : getEmailLink(student);
@@ -378,7 +378,7 @@ export const BillingView: React.FC<BillingViewProps> = ({ students }) => {
                               <div key={student.id} className={`flex items-center justify-between p-4 rounded-lg border transition-all ${isSent ? 'bg-green-50 border-green-200 opacity-70' : 'bg-white border-gray-200 shadow-sm'}`}>
                                   <div className="flex items-center gap-4">
                                       <span className="w-8 h-8 flex items-center justify-center bg-gray-200 rounded-full text-xs font-bold text-gray-600">
-                                          {idx + 1}
+                                          {studentIndex + 1}
                                       </span>
                                       <div>
                                           <p className="font-bold text-gray-800">{student.name}</p>

@@ -60,21 +60,26 @@ export const PosView: React.FC<PosViewProps> = ({
   const cartTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   
   const filteredProducts = useMemo(() => {
-    return products.filter(p => {
-      if (p.isActive === false) return false;
-      const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            p.code?.toLowerCase().includes(searchQuery.toLowerCase());
+    return products.filter(product => {
+      if (product.isActive === false) return false;
+      const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            product.code?.toLowerCase().includes(searchQuery.toLowerCase());
       if (!matchesSearch) return false;
-      if (selectedCategory === 'FAVORITES') return p.isFavorite;
+      if (selectedCategory === 'FAVORITES') return product.isFavorite;
       if (selectedCategory === 'ALL') return true;
-      return p.category === selectedCategory;
+      return product.category === selectedCategory;
     });
   }, [selectedCategory, searchQuery, products]);
 
   const filteredStudents = useMemo(() => {
-      if (!studentSearchQuery) return students.filter(s => s.isActive !== false); 
-      const q = studentSearchQuery.toLowerCase();
-      return students.filter(s => (s.isActive !== false) && (s.name.toLowerCase().includes(q) || s.grade.toLowerCase().includes(q) || s.code?.toLowerCase().includes(q)));
+      if (!studentSearchQuery) return students.filter(student => student.isActive !== false); 
+      const lowerCaseQuery = studentSearchQuery.toLowerCase();
+      return students.filter(student => 
+          (student.isActive !== false) && 
+          (student.name.toLowerCase().includes(lowerCaseQuery) || 
+           student.grade.toLowerCase().includes(lowerCaseQuery) || 
+           student.code?.toLowerCase().includes(lowerCaseQuery))
+      );
   }, [students, studentSearchQuery]);
 
   // OVERDUE LOGIC
@@ -113,9 +118,26 @@ export const PosView: React.FC<PosViewProps> = ({
     });
   };
 
-  const removeFromCart = (productId: string) => setCart(prev => prev.filter(item => item.id !== productId));
-  const updateQuantity = (productId: string, delta: number) => { setCart(prev => prev.map(item => { if (item.id === productId) { const newQty = item.quantity + delta; return { ...item, quantity: Math.max(1, newQty) }; } return item; })); };
-  const addItemNote = (productId: string) => { const note = prompt("Obs:"); if (note !== null) setCart(prev => prev.map(item => item.id === productId ? { ...item, notes: note } : item)); };
+  const removeFromCart = (productId: string) => setCart(previousCart => previousCart.filter(item => item.id !== productId));
+  
+  const updateQuantity = (productId: string, delta: number) => { 
+      setCart(previousCart => previousCart.map(item => { 
+          if (item.id === productId) { 
+              const newQuantity = item.quantity + delta; 
+              return { ...item, quantity: Math.max(1, newQuantity) }; 
+          } 
+          return item; 
+      })); 
+  };
+  
+  const addItemNote = (productId: string) => { 
+      const note = prompt("Obs:"); 
+      if (note !== null) {
+          setCart(previousCart => previousCart.map(item => 
+              item.id === productId ? { ...item, notes: note } : item
+          ));
+      }
+  };
   
   // Student Modal Selection
   const handleSelectStudent = (student: Student) => { 
